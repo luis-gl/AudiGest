@@ -1,6 +1,6 @@
 import os
 from utils.face_detection import FaceDetector
-from utils.save_utils import save_dictionary, load_dictionary
+from utils.save_utils import save_pickle, load_pickle
 
 
 def get_valid_subjects_paths():
@@ -34,11 +34,11 @@ def get_subject_video_data():
     sbj_video_paths_fname = 'sbj_video_paths.pkl'
     sbj_video_paths = None
     try:
-        sbj_video_paths = load_dictionary(sbj_video_paths_fname)
+        sbj_video_paths = load_pickle(sbj_video_paths_fname)
     except ValueError:
         print('Creating new subject video paths data.')
         sbj_video_paths = get_valid_subjects_paths()
-        save_dictionary(sbj_video_paths, sbj_video_paths_fname)
+        save_pickle(sbj_video_paths, sbj_video_paths_fname)
     else:
         print('Loading existing subject video paths data.')
     finally:
@@ -67,7 +67,7 @@ def main():
                 face_landmarks = detector.get_face_landmarks(video_path=video)
                 video_landmarks.append(face_landmarks)
             landmarks_dict[sbj][emotion] = video_landmarks
-    save_dictionary(landmarks_dict, 'sbj_face_landmarks.pkl')
+    save_pickle(landmarks_dict, 'sbj_face_landmarks.pkl')
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@
 .idea
 
 # Processed dataset
-processed_data/
+processed_data/*
 
 # Downloaded dataset
-MEAD/
+MEAD/*

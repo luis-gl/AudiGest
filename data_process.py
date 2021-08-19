@@ -1,5 +1,5 @@
 import os
-from utils.face_detection import FaceDetector
+from face_detection import FaceDetector
 from utils.save_utils import save_pickle, load_pickle
 
 
@@ -15,13 +15,13 @@ def get_valid_subjects_paths():
         if set(sbj_emotions) != emotions_set:
             subjects.remove(sbj)
 
-    neutral_lv_path = '/level_1/'
-    emotion_lv_path = '/level_2/'
+    neutral_lv_dir = '/level_1/'
+    emotion_lv_dir = '/level_2/'
     subject_dict = {}
     for sbj in subjects:
         subject_dict[sbj] = {}
         for e in emotions:
-            lv_path = neutral_lv_path if e == 'neutral' else emotion_lv_path
+            lv_path = neutral_lv_dir if e == 'neutral' else emotion_lv_dir
             video_path = data_path + sbj + common_path + e + lv_path
             videos = os.listdir(video_path)
             paths = [video_path + v for v in videos]
@@ -57,17 +57,16 @@ def print_subject_dict(data_dict):
 def main():
     video_data = get_subject_video_data()
     detector = FaceDetector()
-    landmarks_dict = {}
+    file_sufix = '_video_landmarks.pkl'
     for sbj in video_data:
         print(sbj)
-        landmarks_dict[sbj] = {}
         for emotion in video_data[sbj]:
-            video_landmarks = []
+            face_landmarks = []
             for video in video_data[sbj][emotion]:
-                face_landmarks = detector.get_face_landmarks(video_path=video)
-                video_landmarks.append(face_landmarks)
-            landmarks_dict[sbj][emotion] = video_landmarks
-    save_pickle(landmarks_dict, 'sbj_face_landmarks.pkl')
+                video_landmarks = detector.get_face_landmarks(video_path=video)
+                face_landmarks.append(video_landmarks)
+            save_pickle(data=face_landmarks, file_name=emotion + file_sufix,
+                        dir_path=sbj)
 
 
 if __name__ == '__main__':

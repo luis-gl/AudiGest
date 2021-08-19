@@ -29,14 +29,14 @@ class FaceDetector:
         Process a video and returns an array of named tuples of the face landmarks detected.
 
         Args:
-            video_path:
-            display_landmarks:
+            video_path: String containing the path of the video file.
+            display_landmarks: Boolean that defines if show each frame with face landmarks.
 
         Raises:
             ValueError: If the video path is not a video file or does not exists.
 
         Returns:
-            An array of NamedTuple object containing the face landmarks detected on the each video frame.
+            A list of lists containing the x, y and z component of the face landmarks detected on each video frame.
         """
         if not os.path.exists(video_path) or not os.path.isfile(video_path):
             raise ValueError('Video path is not a file or does not exists.')
@@ -45,7 +45,7 @@ class FaceDetector:
             raise ValueError('Video path is not a supported video')
 
         video = cv2.VideoCapture(video_path)
-        face_landmarks = []
+        video_landmarks = []
         with self.mp_face_mesh.FaceMesh(min_detection_confidence=self.min_detection_confidence,
                                         min_tracking_confidence=self.min_tracking_confidence) as face_mesh:
             while video.isOpened():
@@ -59,19 +59,23 @@ class FaceDetector:
 
                 img.flags.writeable = True
                 img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
                 if not results.multi_face_landmarks:
                     continue
 
-                face_landmarks.append(results.multi_face_landmarks[0])
+                frame_landmarks = results.multi_face_landmarks[0]
+                lm_list = []
+                for lm in frame_landmarks.landmark:
+                    lm_list.append([lm.x, lm.y, lm.z])
+                video_landmarks.append(lm_list)
 
                 if not display_landmarks:
                     continue
 
-                for landmarks in results.multi_face_landmarks:
-                    self.mp_drawing.draw_landmarks(image=img, landmark_list=landmarks,
-                                                   connections=self.mp_face_mesh.FACE_CONNECTIONS,
-                                                   landmark_drawing_spec=self.drawing_spec,
-                                                   connection_drawing_spec=self.drawing_spec)
+                self.mp_drawing.draw_landmarks(image=img, landmark_list=frame_landmarks,
+                                               connections=self.mp_face_mesh.FACE_CONNECTIONS,
+                                               landmark_drawing_spec=self.drawing_spec,
+                                               connection_drawing_spec=self.drawing_spec)
                 cv2.imshow('Face landmarks', img)
                 if cv2.waitKey(20) == ord('s'):
                     break
@@ -79,14 +83,13 @@ class FaceDetector:
         video.release()
         cv2.destroyAllWindows()
 
-        return face_landmarks
+        return video_landmarks
 
 
 def main():
-    video_path = '../MEAD/M003/video/front/angry/level_2/013.mp4'
+    video_path = 'MEAD/M003/video/front/angry/level_2/013.mp4'
     detector = FaceDetector(confidence=0.8)
-    face_landmarks = detector.get_face_landmarks(video_path, False)
-    print(len(face_landmarks))
+    video_landmarks = detector.get_face_landmarks(video_path, True)
 
 
 if __name__ == "__main__":

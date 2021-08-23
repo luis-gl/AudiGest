@@ -5,7 +5,7 @@ from utils.save_utils import load_pickle
 
 def main():
     video_paths = load_pickle('sbj_video_paths.pkl')
-    subjects = list(video_paths.keys())[0:2]
+    subjects = list(video_paths.keys())
     emotions = list(video_paths[subjects[0]].keys())
 
     file_sufix = '_video_landmarks.pkl'

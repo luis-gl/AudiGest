@@ -1,8 +1,30 @@
 import os
 import pickle
+import numpy as np
 
 
-def load_pickle(file_name=''):
+def load_numpy(file_name: str = '') -> np.ndarray:
+    data_dir = 'processed_data'
+    file_path = os.path.join(data_dir, file_name)
+    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+        raise ValueError('{} does not exists'.format(file_path))
+
+    return np.load(file_path)
+
+
+def save_numpy(np_data: np.ndarray, file_name: str, dir_path: str = None):
+    data_dir = 'processed_data'
+    if dir_path is not None:
+        data_dir = os.path.join(data_dir, dir_path)
+
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+
+    file_path = os.path.join(data_dir, file_name)
+    np.save(file_path, np_data)
+
+
+def load_pickle(file_name='') -> object:
     """
         Load pickle serialized data from processed_data directory.
 
@@ -22,6 +44,7 @@ def load_pickle(file_name=''):
 
     with open(file_path, 'rb') as handle:
         return pickle.load(handle)
+
 
 def save_pickle(data, file_name, dir_path=None):
     """

@@ -1,16 +1,21 @@
 import cv2
 import os
+import numpy as np
 import mediapipe as mp
+from utils.save_utils import save_numpy
 
 
 class FaceDetector:
-    def __init__(self, confidence=0.5, debug_color=(255, 255, 0), debug_thickness=1, debug_circle_radius=1):
+    def __init__(self, confidence: float = 0.5, display_landmarks: bool = False,
+                 debug_color: tuple[int, int, int] = (255, 255, 0),
+                 debug_thickness: int = 1, debug_circle_radius: int = 1):
         """
         Class to extract face landmarks from video.
 
         Args:
             confidence: Float number that represents minimum confidence ([0.0, 0.1]) for face landmark extractor to
                 be considered successful.
+            display_landmarks: Boolean that defines if show each frame with face landmarks.
             debug_color: Color tuple of integers (r, g, b) that will be applied to the landmark drawer when
                 displayed.
             debug_thickness: Integer number that represents thickness that will be applied to the landmark drawer
@@ -23,14 +28,14 @@ class FaceDetector:
                                                         circle_radius=debug_circle_radius)
         self.min_detection_confidence = confidence
         self.min_tracking_confidence = confidence
+        self.display_landmarks = display_landmarks
 
-    def get_face_landmarks(self, video_path="", display_landmarks=False):
+    def get_face_landmarks(self, video_path: str = "") -> np.ndarray:
         """
         Process a video and returns an array of named tuples of the face landmarks detected.
 
         Args:
             video_path: String containing the path of the video file.
-            display_landmarks: Boolean that defines if show each frame with face landmarks.
 
         Raises:
             ValueError: If the video path is not a video file or does not exists.
@@ -66,10 +71,10 @@ class FaceDetector:
                 frame_landmarks = results.multi_face_landmarks[0]
                 lm_list = []
                 for lm in frame_landmarks.landmark:
-                    lm_list.append([lm.x, lm.y, lm.z])
+                    lm_list.append([lm.x - 0.5, -(lm.y - 0.5), lm.z])
                 video_landmarks.append(lm_list)
 
-                if not display_landmarks:
+                if not self.display_landmarks:
                     continue
 
                 self.mp_drawing.draw_landmarks(image=img, landmark_list=frame_landmarks,
@@ -83,13 +88,16 @@ class FaceDetector:
         video.release()
         cv2.destroyAllWindows()
 
+        video_landmarks = np.array(video_landmarks)
         return video_landmarks
 
 
 def main():
-    video_path = 'MEAD/M003/video/front/angry/level_2/013.mp4'
-    detector = FaceDetector(confidence=0.8)
-    video_landmarks = detector.get_face_landmarks(video_path, True)
+    video_path = 'MEAD/M003/video/front/angry/level_2/001.mp4'
+    detector = FaceDetector(display_landmarks=False, confidence=0.8)
+    video_landmarks = detector.get_face_landmarks(video_path=video_path)
+    print(video_landmarks.shape)
+    save_numpy(video_landmarks, 'test.npy')
 
 
 if __name__ == "__main__":

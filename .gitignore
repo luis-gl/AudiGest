@@ -11,3 +11,7 @@ MEAD/*
 __pycache__/
 *.py[cod]
 *$py.class
+
+torchaudio_test.py
+video2.txt
+to_txt.py

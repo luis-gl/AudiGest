@@ -26,15 +26,11 @@ def main():
     data_dict = get_data()
     detector = FaceDetector(confidence=0.8)
     jobs = []
-    c = 0
     for subject in data_dict:
-        if c > 3:
-            break
-        print(subject, c)
+        print(subject)
         task = Thread(target=process_subject_data, args=(subject, data_dict, detector,))
         jobs.append(task)
         task.start()
-        c += 1
 
 
 if __name__ == '__main__':

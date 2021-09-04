@@ -1,9 +1,9 @@
 import os
 from face_detection import FaceDetector
 from threading import Thread
-from utils.convert_to_wav import convert_to_wav
-from utils.data_utils import get_data
-from utils.save_utils import save_numpy
+from utils.file_utils.convert_to_wav import convert_to_wav
+from utils.file_utils.data_utils import get_data
+from utils.file_utils.save_utils import save_numpy
 
 
 def process_subject_data(subject: str, data_dict: dict, file_type: str, detector: FaceDetector = None):

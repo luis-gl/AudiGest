@@ -1,5 +1,5 @@
 from matplotlib import pyplot as plt
-from utils.save_utils import load_numpy
+from utils.file_utils.save_utils import load_numpy
 
 
 def main():

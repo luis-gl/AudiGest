@@ -3,6 +3,8 @@
 
 # Processed dataset
 processed_data/*
+!processed_data/*.csv
+!processed_data/*.pkl
 
 # Downloaded dataset
 MEAD/*

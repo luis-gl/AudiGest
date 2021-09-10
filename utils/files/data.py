@@ -1,5 +1,5 @@
 import os
-from utils.file_utils.save_utils import save_pickle, load_pickle
+from utils.files.save import save_pickle, load_pickle
 
 
 def get_valid_subjects_paths(project_root: str = '') -> dict:

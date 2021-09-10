@@ -2,7 +2,7 @@ import cv2
 import os
 import numpy as np
 import mediapipe as mp
-from utils.file_utils.save_utils import save_numpy
+from utils.files.save import save_numpy
 
 
 class FaceDetector:

@@ -45,6 +45,9 @@ def create_default_config():
                 'hidden_1': 512,
                 'lmks_num': 468
             }
+        },
+        'training': {
+            'batch_size': 64
         }
     }
 

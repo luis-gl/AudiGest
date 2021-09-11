@@ -1,15 +1,8 @@
+import librosa
 import torch
 import torch.nn.functional as F
 import torchaudio
 import torchaudio.transforms as T
-
-
-def get_melspec_transform(sr: int, n_fft: int, hop_len: int) -> T.MelSpectrogram:
-    return T.MelSpectrogram(
-        sample_rate=sr,
-        n_fft=n_fft,
-        hop_length=hop_len
-    )
 
 
 def get_mfcc_transform(sr: int, n_fcc: int, n_fft: int, hop_len: int) -> T.MFCC:
@@ -42,20 +35,19 @@ def get_signal_mono(audio_path: str, config: dict) -> torch.Tensor:
     return _convert_to_mono(signal)
 
 
-def get_sliced_melspectrogram(mono_signal: torch.Tensor, ms_transform: T.MelSpectrogram,
-                              max_samples: int = 16000) -> torch.Tensor:
+def get_sliced_melspectrogram(mono_signal: torch.Tensor, config: dict, n_fft: int, hop_len: int) -> torch.Tensor:
     signal_len = mono_signal.shape[1]
-    if signal_len > max_samples:
-        mono_signal = mono_signal[:, :max_samples]
-    elif signal_len < max_samples:
-        pad_samples = max_samples - signal_len
+    if signal_len > config['max_samples']:
+        mono_signal = mono_signal[:, :config['max_samples']]
+    elif signal_len < config['max_samples']:
+        pad_samples = config['max_samples'] - signal_len
         right_pad = (0, pad_samples)
         mono_signal = F.pad(mono_signal, right_pad)
 
-    if ms_transform is not None:
-        return ms_transform(mono_signal)
-    else:
-        raise AttributeError('Melspectrogram transformation function is None')
+    melspec = librosa.feature.melspectrogram(mono_signal.numpy()[0], config['sample_rate'],
+                                            n_fft=n_fft, hop_length=hop_len)
+
+    return torch.from_numpy(melspec)
 
 
 def compute_mfcc(mono_signal: torch.Tensor, mfcc_transform: T.MFCC = None) -> torch.Tensor:

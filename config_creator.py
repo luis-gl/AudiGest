@@ -32,19 +32,17 @@ def create_default_config():
             'fps': 30
         },
         'model': {
-            'cnn': {
-                'kernel_1': 5
-            },
             'lstm': {
-                'input_dim': 20,
-                'hidden_dim': 40,
-                'num_layers': 2,
-                'output_dim': 256
+                'hidden_dim': 16,
+                'num_layers': 1,
             },
             'fc': {
+                'in_feat': 128,
                 'hidden_1': 512,
-                'lmks_num': 468
-            }
+                'hidden_2': 512,
+                'drop': 0.5
+            },
+            'vertex_num': 468
         },
         'training': {
             'batch_size': 64

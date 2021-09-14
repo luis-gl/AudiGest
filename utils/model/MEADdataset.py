@@ -25,7 +25,7 @@ class MEADDataset(Dataset):
         melspec_path, lmks_path, mfcc_path = self._get_element_path(index)
         melspec = load_torch(melspec_path)
         target = load_numpy(lmks_path)
-        target = torch.from_numpy(target)
+        target = torch.from_numpy(target).type(torch.float32)
         mfcc = load_torch(mfcc_path)
 
         return melspec, mfcc, target

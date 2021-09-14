@@ -17,12 +17,17 @@ files:
 model:
   fc:
     drop: 0.5
-    hidden_1: 512
-    hidden_2: 512
-    in_feat: 128
+    hidden_1: 256
+    hidden_2: 128
+    hidden_3: 256
+    hidden_4: 512
+    in_feat: 576
   lstm:
     hidden_dim: 16
     num_layers: 1
   vertex_num: 468
 training:
   batch_size: 64
+  decay_rate: 1.0
+  epochs: 1
+  learning_rate: 0.0001

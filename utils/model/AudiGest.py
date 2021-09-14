@@ -3,10 +3,11 @@ from torch import nn
 
 
 class AudiGest(nn.Module):
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, device: torch.device):
         super(AudiGest, self).__init__()
 
         self.config = config
+        self.device = device
 
         self.emotion_encoder = nn.Sequential(
             nn.BatchNorm2d(1, eps=1e-5),
@@ -25,42 +26,47 @@ class AudiGest(nn.Module):
             # [B, 16, 13, 5] -> [B, 16, 3, 2]
         )
 
-        self.input_s = config['audio']['n_mfcc']
-        self.hidden_s = config['model']['lstm']['hidden_dim']
+        self.input_dim = config['audio']['n_mfcc']
+        self.hidden_dim = config['model']['lstm']['hidden_dim']
         self.layers = config['model']['lstm']['num_layers']
-        self.lang_encoder = nn.LSTM(input_size=self.input_s, hidden_size=self.hidden_s,
+        self.lang_encoder = nn.LSTM(input_size=self.input_dim, hidden_size=self.hidden_dim,
                                     num_layers=self.layers, batch_first=True)
         # -> [B, L, 32]: Batch, Length, hidden_size
-        self.hidden = None
-        self.cell = None
+        self._init_state()
 
+        fc_config = config['model']['fc']
         self.decoder = nn.Sequential(
-            nn.Linear(in_features=config['model']['fc']['in_feat'], out_features=config['model']['fc']['hidden_1']),
+            nn.Linear(in_features=fc_config['in_feat'], out_features=fc_config['hidden_1']),
             nn.ReLU(),
-            nn.Dropout(config['model']['fc']['drop']),
-            nn.Linear(in_features=config['model']['fc']['hidden_1'], out_features=config['model']['fc']['hidden_2']),
+            nn.Dropout(fc_config['drop']),
+            nn.Linear(in_features=fc_config['hidden_1'], out_features=fc_config['hidden_2']),
+            nn.ReLU(),
+            nn.Dropout(fc_config['drop']),
+            nn.Linear(in_features=fc_config['hidden_2'], out_features=fc_config['hidden_3']),
+            nn.ReLU(),
+            nn.Dropout(fc_config['drop']),
+            nn.Linear(in_features=fc_config['hidden_3'], out_features=fc_config['hidden_4']),
             nn.Tanh(),
-            nn.Dropout(config['model']['fc']['drop']),
-            nn.Linear(in_features=config['model']['fc']['hidden_2'], out_features=config['model']['vertex_num']*3)
+            nn.Linear(in_features=fc_config['hidden_4'], out_features=config['model']['vertex_num']*3)
         )
 
-    def init_state(self):
-        self.hidden = torch.empty(self.config['model']['lstm']['num_layers'], self.config['training']['batch_size'],
-                                  self.config['model']['lstm']['hidden_dim'], dtype=torch.float32)
-        self.cell = torch.empty(self.config['model']['lstm']['num_layers'], self.config['training']['batch_size'],
-                                  self.config['model']['lstm']['hidden_dim'], dtype=torch.float32)
-        self.hidden = nn.init.constant_(self.hidden, 0.0)
-        self.cell = nn.init.constant_(self.cell, 0.0)
+    def _init_state(self):
+        self.h_s = torch.zeros(self.config['model']['lstm']['num_layers'], self.config['training']['batch_size'],
+                               self.config['model']['lstm']['hidden_dim'], dtype=torch.float32)
+        self.c_s = torch.zeros(self.config['model']['lstm']['num_layers'], self.config['training']['batch_size'],
+                               self.config['model']['lstm']['hidden_dim'], dtype=torch.float32)
+
+        self.h_s = self.h_s.to(self.device)
+        self.c_s = self.c_s.to(self.device)
 
     def forward(self, melspec, mfcc):
         encoded_em = self.emotion_encoder(melspec)  # -> [B, 16, 3, 2]
         encoded_em = encoded_em.flatten(start_dim=1)
-        lstm_res, (self.hidden, self.cell) = self.lang_encoder(mfcc, (self.hidden, self.cell))
+        lstm_res, (self.h_s, self.c_s) = self.lang_encoder(mfcc, (self.h_s, self.c_s))
+        self.h_s, self.c_s = self.h_s.detach(), self.c_s.detach()
         # -> [B, 30, 16], [1, B, 16], [1, B, 16]
-        self.hidden, self.cell = self.hidden.permute(1, 0, 2), self.cell.permute(1, 0, 2)
-        self.hidden = self.hidden.flatten(start_dim=1)
-        self.cell = self.cell.flatten(start_dim=1)
-        concat = torch.cat((self.hidden, self.cell, encoded_em), 1)
+        lstm_res = lstm_res.flatten(start_dim=1)
+        concat = torch.cat((lstm_res, encoded_em), 1)
         reconstructed = self.decoder(concat)
         reconstructed = torch.reshape(reconstructed, (-1, self.config['model']['vertex_num'], 3))
         return reconstructed

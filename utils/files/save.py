@@ -1,5 +1,6 @@
 import os
 import pickle
+from typing import Any
 import numpy as np
 import torch
 
@@ -42,19 +43,19 @@ def load_torch(file_name: str) -> torch.Tensor:
     return torch.load(file_path)
 
 
-def save_torch(tensor: torch.Tensor, file_name: str, dir_path: str = None):
+def save_torch(content, file_name: str, dir_path: str = None):
     """
-        Save content to pickle serialized file in 'processed_data' directory.
+        Save content to pytorch serialized file in 'processed_data' directory.
 
         Args:
-            tensor: Numpy array containing the data to save in file.
+            tensor: Object containing the data to save in file.
             file_name: String containing the name for the file (only name, not directory).
             dir_path: String containing the directory for the file if the user want to save
             the file inside a folder.
     """
     file_path = _check_file_path(file_name, dir_path)
 
-    torch.save(tensor, file_path)
+    torch.save(content, file_path)
 
 
 def load_numpy(file_name: str = '') -> np.ndarray:

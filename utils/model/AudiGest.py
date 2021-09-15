@@ -1,13 +1,15 @@
+import os
 import torch
+
 from torch import nn
+from utils.files.save import load_torch, save_torch
 
 
 class AudiGest(nn.Module):
-    def __init__(self, config: dict, device: torch.device):
+    def __init__(self, config: dict):
         super(AudiGest, self).__init__()
 
         self.config = config
-        self.device = device
 
         self.emotion_encoder = nn.Sequential(
             nn.BatchNorm2d(1, eps=1e-5),
@@ -32,7 +34,6 @@ class AudiGest(nn.Module):
         self.lang_encoder = nn.LSTM(input_size=self.input_dim, hidden_size=self.hidden_dim,
                                     num_layers=self.layers, batch_first=True)
         # -> [B, L, 32]: Batch, Length, hidden_size
-        self._init_state()
 
         fc_config = config['model']['fc']
         self.decoder = nn.Sequential(
@@ -50,23 +51,40 @@ class AudiGest(nn.Module):
             nn.Linear(in_features=fc_config['hidden_4'], out_features=config['model']['vertex_num']*3)
         )
 
-    def _init_state(self):
-        self.h_s = torch.zeros(self.config['model']['lstm']['num_layers'], self.config['training']['batch_size'],
-                               self.config['model']['lstm']['hidden_dim'], dtype=torch.float32)
-        self.c_s = torch.zeros(self.config['model']['lstm']['num_layers'], self.config['training']['batch_size'],
-                               self.config['model']['lstm']['hidden_dim'], dtype=torch.float32)
-
-        self.h_s = self.h_s.to(self.device)
-        self.c_s = self.c_s.to(self.device)
-
-    def forward(self, melspec, mfcc):
+    def forward(self, melspec: torch.Tensor, mfcc: torch.Tensor, hidden: torch.Tensor=None):
         encoded_em = self.emotion_encoder(melspec)  # -> [B, 16, 3, 2]
         encoded_em = encoded_em.flatten(start_dim=1)
-        lstm_res, (self.h_s, self.c_s) = self.lang_encoder(mfcc, (self.h_s, self.c_s))
-        self.h_s, self.c_s = self.h_s.detach(), self.c_s.detach()
+        lstm_res, hidden = self.lang_encoder(mfcc, hidden)
+        # hidden = hidden.detach()
         # -> [B, 30, 16], [1, B, 16], [1, B, 16]
         lstm_res = lstm_res.flatten(start_dim=1)
         concat = torch.cat((lstm_res, encoded_em), 1)
         reconstructed = self.decoder(concat)
         reconstructed = torch.reshape(reconstructed, (-1, self.config['model']['vertex_num'], 3))
-        return reconstructed
+        return reconstructed, hidden
+
+    def save(self, epoch: int, optimizer: torch.optim.Optimizer,
+            scheduler: torch.optim.lr_scheduler.ExponentialLR,
+            train_loss_hist: list[float], val_loss_hist: list[float]):
+
+        save_dict = {
+            'model': self.state_dict(),
+            'optim': optimizer.state_dict(),
+            'scheduler': scheduler.state_dict(),
+            'train_loss_hist': train_loss_hist,
+            'val_loss_hist': val_loss_hist
+        }
+        file_name = f'AG_{epoch}.pt'
+        save_torch(save_dict, file_name=file_name, dir_path='training')
+
+    def load(self, epoch: int) -> tuple[dict, dict, list[float], list[float]]:
+        file_name = f'AG_{epoch}.pt'
+        file_path = os.path.join('training', file_name)
+        state = None
+        try:
+            state = load_torch(file_path)
+            self.load_state_dict(state['model'])
+            return state['optim'], state['scheduler'], state['train_loss_hist'], state['val_loss_hist']
+        except ValueError:
+            print(f'No file at processed_data/training with name {file_name}, starting training from 0.')
+            return None, None, None, None

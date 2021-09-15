@@ -15,10 +15,11 @@ def plot_loss(model_dic, model_name=None, save=False, test=False):
     plt.ylabel('Loss')
     plt.xlabel('Epoch')
     plt.legend(loc='lower right')
-    plt.show()
     if save:
         if test:
-            fname = './plots/{}_losses_test.png'.format(model_name)
+            fname = f'./plots/{model_name}_losses_test.png'
         else:
-            fname = './plots/{}_losses.png'.format(model_name)
+            fname = f'./plots/{model_name}_losses.png'
         plt.savefig(fname)
+        return
+    plt.show()

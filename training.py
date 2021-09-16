@@ -132,7 +132,7 @@ def train_model(train_dl: data.DataLoader, val_dl: data.DataLoader, model: AudiG
 
     model = model.to(device)
 
-    for epoch in range(num_epochs):
+    for epoch in range(1, num_epochs + 1):
         s = time.time()
         train_loss = train_step(train_dl, model, loss_fn, optimizer, device, epoch, num_epochs)
         val_loss = validation_step(val_dl, model, loss_fn, device, epoch, num_epochs)
@@ -146,7 +146,8 @@ def train_model(train_dl: data.DataLoader, val_dl: data.DataLoader, model: AudiG
 
         scheduler.step()
 
-    model.save(num_epochs, optimizer, scheduler, train_loss_history, val_loss_history)
+        if epoch % 10 == 0:
+            model.save(epoch, optimizer, scheduler, train_loss_history, val_loss_history)
 
     model_dict = {
         'train_history': train_loss_history,

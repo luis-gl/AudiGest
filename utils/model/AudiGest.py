@@ -55,7 +55,9 @@ class AudiGest(nn.Module):
         encoded_em = self.emotion_encoder(melspec)  # -> [B, 16, 3, 2]
         encoded_em = encoded_em.flatten(start_dim=1)
         lstm_res, hidden = self.lang_encoder(mfcc, hidden)
-        # hidden = hidden.detach()
+        h, c = hidden
+        h, c = h.detach(), c.detach()
+        hidden = (h, c)
         # -> [B, 30, 16], [1, B, 16], [1, B, 16]
         lstm_res = lstm_res.flatten(start_dim=1)
         concat = torch.cat((lstm_res, encoded_em), 1)

@@ -81,7 +81,7 @@ def train_step(train_dl: data.DataLoader, model: AudiGest, loss_fn: nn.L1Loss,
         
         train_loss += loss.item()
         
-        train_loop.set_description(f'Epoch {epoch + 1}/{num_epochs}')
+        train_loop.set_description(f'Epoch {epoch}/{num_epochs}')
         train_loop.set_postfix(loss=loss.item())
 
     train_loss /= n
@@ -113,7 +113,7 @@ def validation_step(val_dl: data.DataLoader, model: AudiGest, loss_fn: nn.L1Loss
             
             val_loss += loss.item()
             
-            val_loop.set_description(f'Epoch {epoch + 1}/{num_epochs}')
+            val_loop.set_description(f'Epoch {epoch}/{num_epochs}')
             val_loop.set_postfix(loss=loss.item())
 
     val_loss /= n
@@ -140,7 +140,7 @@ def train_model(train_dl: data.DataLoader, val_dl: data.DataLoader, model: AudiG
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
 
-        print(f'epoch {epoch + 1}/{num_epochs}: {(time.time() - s) / 60}')
+        print(f'epoch {epoch}/{num_epochs}: {(time.time() - s) / 60}')
         print('train loss:', train_loss)
         print('val loss:', val_loss)
 
@@ -187,7 +187,11 @@ def main():
     if scheduler_st is not None:
         scheduler.load_state_dict(scheduler_st)
     
-    model_dict = train_model(train_dl, val_dl, model, optimizer, scheduler, train_hist, val_hist, device, epochs)
+    # model_dict = train_model(train_dl, val_dl, model, optimizer, scheduler, train_hist, val_hist, device, epochs)
+    model_dict = {
+        'train_history': train_hist,
+        'val_history': val_hist
+    }
     plot_loss(model_dict, 'AudiGest', save=True, test=True)
 
 

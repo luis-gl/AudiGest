@@ -21,9 +21,11 @@ def create_default_config():
             'test_root': 'processed_data/test',
             'train_csv': 'processed_data/train_dataset.csv',
             'test_csv': 'processed_data/test_dataset.csv',
+            'train_mini': 'processed_data/train_mini.csv',
+            'test_mini': 'processed_data/test_mini.csv'
         },
         'audio': {
-            'use_clean': False,
+            'use_clean': True,
             'sample_rate': 16000,
             'max_samples': 16000,
             'sample_interval': 1 / 30,
@@ -69,4 +71,4 @@ def get_config():
 
 
 if __name__ == '__main__':
-    get_config()
+    create_default_config()

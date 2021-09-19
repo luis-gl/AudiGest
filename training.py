@@ -30,16 +30,18 @@ def get_last_epoch() -> int:
     checkpoints_dir = os.path.join('processed_data', 'training')
     if not os.path.exists(checkpoints_dir):
         os.makedirs(checkpoints_dir)
+        print(f'No checkpoint detected.')
         return -1
 
     checkpoints = [int(file.split('.')[0].replace('AG_', ''))
                     for file in os.listdir(checkpoints_dir)]
 
     if len(checkpoints) < 1:
+        print(f'No checkpoint detected.')
         return -1
 
     last_checkpoint = max(checkpoints)
-    print(f'Detected last checkpoint at epoch {last_checkpoint}, continuing training.')
+    print(f'Detected last checkpoint at epoch {last_checkpoint}.')
     return last_checkpoint
 
 

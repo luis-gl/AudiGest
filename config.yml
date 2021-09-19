@@ -4,15 +4,17 @@ audio:
   n_mfcc: 20
   sample_interval: 0.03333333333333333
   sample_rate: 16000
-  use_clean: false
+  use_clean: true
   window_len: 0.025
 files:
   data_root: processed_data
   raw_data_root: MEAD
   subject_paths: processed_data/sbj_data_paths.pkl
   test_csv: processed_data/test_dataset.csv
+  test_mini: processed_data/test_mini.csv
   test_root: processed_data/test
   train_csv: processed_data/train_dataset.csv
+  train_mini: processed_data/train_mini.csv
   train_root: processed_data/train
 model:
   fc:
@@ -29,5 +31,5 @@ model:
 training:
   batch_size: 64
   decay_rate: 1.0
-  epochs: 40
+  epochs: 10
   learning_rate: 0.0001

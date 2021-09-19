@@ -88,5 +88,5 @@ class AudiGest(nn.Module):
             self.load_state_dict(state['model'])
             return state['optim'], state['scheduler'], state['train_loss_hist'], state['val_loss_hist']
         except ValueError:
-            print(f'No file at processed_data/training with name {file_name}, starting training from 0.')
+            print(f'No file at processed_data/training with name {file_name}.')
             return None, None, None, None

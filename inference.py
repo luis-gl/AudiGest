@@ -1,4 +1,3 @@
-from pandas.core.algorithms import mode
 import torch
 
 from utils.model.AudiGest import AudiGest
@@ -52,7 +51,6 @@ def main():
     print('reconstructed:', reconstructed.shape)
     print('mse:', mse(reconstructed, target))
     
-    # reconstructed = reconstructed.squeeze(0)
     # npy_face = reconstructed.numpy()
     # save_numpy(npy_face, 'test.npy')
 

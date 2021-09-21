@@ -38,9 +38,8 @@ def get_unit_factor(unit):
         raise ValueError('Unit not supported')
 
 def render_mesh_helper(mesh, t_center, rot=np.zeros(3), tex_img=None, v_colors=None, errors=None, error_unit='m', min_dist_in_mm=0.0, max_dist_in_mm=3.0, z_offset=0):
-    camera_params = {'c': np.array([400, 400]),
-                     'k': np.array([-0.19816071, 0.92822711, 0, 0, 0]),
-                     'f': np.array([4754.97941935 / 2, 4754.97941935 / 2])}
+    camera_params = {'c': np.array([400, 200]),
+                     'f': np.array([1700, 1700])}
 
     frustum = {'near': 0.01, 'far': 3.0, 'height': 800, 'width': 800}
 
@@ -81,7 +80,7 @@ def render_mesh_helper(mesh, t_center, rot=np.zeros(3), tex_img=None, v_colors=N
 
     if not texture_rendering:
         tri_mesh = trimesh.Trimesh(vertices=mesh_copy.v, faces=mesh_copy.f, vertex_colors=rgb_per_v)
-        render_mesh = pyrender.Mesh.from_trimesh(tri_mesh, smooth=True)
+        render_mesh = pyrender.Mesh.from_trimesh(tri_mesh, smooth=False)
 
     scene = pyrender.Scene(ambient_light=[.2, .2, .2], bg_color=[255, 255, 255])
     camera = pyrender.IntrinsicsCamera(fx=camera_params['f'][0],
@@ -129,4 +128,4 @@ def render_mesh_helper(mesh, t_center, rot=np.zeros(3), tex_img=None, v_colors=N
         print('pyrender: Failed rendering frame')
         color = np.zeros((frustum['height'], frustum['width'], 3), dtype='uint8')
 
-    return color[..., ::-1]
+    return color[:, ::-1]

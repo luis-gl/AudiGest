@@ -43,8 +43,8 @@ class ModelRender:
             font = cv2.FONT_HERSHEY_SIMPLEX
             textsize = cv2.getTextSize(text, font, 1, 2)[0]
             textX = (img.shape[1] - textsize[0]) // 2
-            textY = textsize[1] + 10
-            cv2.putText(img, '%s' % (text), (textX, textY), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
+            textY = textsize[1] + 50
+            return cv2.putText(img, '%s' % (text), (textX, textY), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
         num_frames = melspec.shape[0]
 
@@ -69,26 +69,18 @@ class ModelRender:
 
             reconstructed, _ = model(melspec, mfcc, hidden)
             reconstructed = reconstructed.cpu().numpy()
-            reconstructed = self._apply_scale(reconstructed)
 
             target = target.numpy()
-            target = self._apply_scale(target)
             center = np.mean(target[0], axis=0)
 
             for i_frame in range(num_frames):
                 gt_img = render_mesh_helper(Mesh(target[i_frame], self.template_mesh.f), center)
-                add_image_text(gt_img, 'Original')
+                gt_img = add_image_text(gt_img, 'Original')
                 pred_img = render_mesh_helper(Mesh(reconstructed[i_frame], self.template_mesh.f), center)
-                add_image_text(pred_img, 'Prediction')
+                pred_img = add_image_text(pred_img, 'Prediction')
                 img = np.hstack((gt_img, pred_img))
                 writer.write(img)
             writer.release()
 
             # cmd = (f'ffmpeg -i {audio_path} -i {temp_video_fname} -vcodec h264 -ac 2 -channel_layout stereo -pix_fmt yuv420p {video_fname}').split()
             # call(cmd)
-    
-    def _apply_scale(self, verts: np.ndarray):
-        verts[:, 0] *= 16.0
-        verts[:, 1] *= 9.0
-        verts[:, 2] *= -16.0
-        return verts

@@ -22,7 +22,8 @@ def create_default_config():
             'train_csv': 'processed_data/train_dataset.csv',
             'test_csv': 'processed_data/test_dataset.csv',
             'train_mini': 'processed_data/train_mini.csv',
-            'test_mini': 'processed_data/test_mini.csv'
+            'test_mini': 'processed_data/test_mini.csv',
+            'face': 'processed_data/face.obj'
         },
         'audio': {
             'use_clean': True,

@@ -8,6 +8,7 @@ audio:
   window_len: 0.025
 files:
   data_root: processed_data
+  face: processed_data/face.obj
   raw_data_root: MEAD
   subject_paths: processed_data/sbj_data_paths.pkl
   test_csv: processed_data/test_dataset.csv

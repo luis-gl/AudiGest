@@ -1,10 +1,12 @@
 import torch
+from torch.utils.data import dataset
 
 from utils.model.AudiGest import AudiGest
 from utils.model.MEADdataset import MEADDataset
 
 from config_creator import get_config
 from training import get_last_epoch
+from utils.rendering.model_render import ModelRender
 from utils.files.save import save_numpy
 
 
@@ -41,15 +43,18 @@ def main():
     last_epoch = get_last_epoch()
     model.load(last_epoch)
 
-    melspec, mfcc, target = test_data.get_sequence(0)
-    print('melspec:', melspec.shape)
-    print('mfcc:', mfcc.shape)
-    print('target:', target.shape)
+    renderer = ModelRender(config=config, dataset=test_data)
+    renderer.render_sequences(model, device, 'output/videos')
 
-    reconstructed = make_inference(model, device, melspec, mfcc)
-    reconstructed = reconstructed.cpu()
-    print('reconstructed:', reconstructed.shape)
-    print('mse:', mse(reconstructed, target))
+    # melspec, mfcc, target, _, _, _ = test_data.get_sequence(0)
+    # print('melspec:', melspec.shape)
+    # print('mfcc:', mfcc.shape)
+    # print('target:', target.shape)
+
+    # reconstructed = make_inference(model, device, melspec, mfcc)
+    # reconstructed = reconstructed.cpu()
+    # print('reconstructed:', reconstructed.shape)
+    # print('mse:', mse(reconstructed, target))
     
     # npy_face = reconstructed.numpy()
     # save_numpy(npy_face, 'test.npy')

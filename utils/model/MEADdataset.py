@@ -34,7 +34,7 @@ class MEADDataset(Dataset):
         return melspec, mfcc, target
 
     def get_sequence(self, index: int):
-        melspec_file, mfcc_container, lmks_container = self._get_inference_item_path(index)
+        melspec_file, mfcc_container, lmks_container, sbj, e, lv, fname = self._get_inference_item_path(index)
         melspec = load_torch(melspec_file)
 
         short_dir_mfcc = mfcc_container.replace('processed_data/', '')
@@ -50,7 +50,7 @@ class MEADDataset(Dataset):
         mfcc = torch.stack(mfcc_list)
         target = torch.stack(lmks_list)
 
-        return melspec, mfcc, target
+        return melspec, mfcc, target, sbj, e, lv, fname
 
 
     def _get_inference_item_path(self, index: int) -> tuple[str, str, str]:
@@ -61,7 +61,7 @@ class MEADDataset(Dataset):
         melspec_file = melspec_file.replace('processed_data/', '')
         lmks_container = os.path.join(container_dir, self.landmarks_dir, fname)
         mfcc_container = os.path.join(container_dir, self.mfcc_dir, fname)
-        return melspec_file, mfcc_container, lmks_container
+        return melspec_file, mfcc_container, lmks_container, sbj, e, f'level_{lv}', fname
 
     def _get_element_path(self, index: int) -> tuple[str, str, str]:
         sbj, e, lv, audio, melspec, lmks, mfcc = self.csv_data.iloc[index]

@@ -56,7 +56,7 @@ def get_csv_elements(parent_dir: str):
 def main():
     root = 'processed_data'
     col_names = 'subject,emotion,level,audio,melspec,landmarks,mfccs\n'
-    for state in ['train', 'test']:
+    for state in ['train', 'val', 'test']:
         csv = get_csv_elements(os.path.join(root, state))
         with open(f'processed_data/{state}_dataset.csv', 'w') as file:
             file.write(col_names + csv)

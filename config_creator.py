@@ -17,12 +17,21 @@ def create_default_config():
             'raw_data_root': 'MEAD',
             'data_root': 'processed_data',
             'subject_paths': 'processed_data/sbj_data_paths.pkl',
-            'train_root': 'processed_data/train',
-            'test_root': 'processed_data/test',
-            'train_csv': 'processed_data/train_dataset.csv',
-            'test_csv': 'processed_data/test_dataset.csv',
-            'train_mini': 'processed_data/train_mini.csv',
-            'test_mini': 'processed_data/test_mini.csv',
+            'train': {
+                'root': 'processed_data/train',
+                'csv': 'processed_data/train_dataset.csv',
+                'mini': 'processed_data/train_mini.csv',
+            },
+            'val': {
+                'root': 'processed_data/val',
+                'csv': 'processed_data/val_dataset.csv',
+                'mini': 'processed_data/val_mini.csv',
+            },
+            'test': {
+                'root': 'processed_data/test',
+                'csv': 'processed_data/test_dataset.csv',
+                'mini': 'processed_data/test_mini.csv',
+            },
             'face': 'processed_data/face.obj'
         },
         'audio': {
@@ -50,7 +59,7 @@ def create_default_config():
         'training': {
             'batch_size': 64,
             'learning_rate': 1e-4,
-            'epochs': 10,
+            'epochs': 50,
             'decay_rate': 1.0
         }
     }

@@ -40,12 +40,10 @@ def create_default_config():
                 'num_layers': 1,
             },
             'fc': {
-                'in_feat': 576,
+                'in_feat': 136,
                 'hidden_1': 256,
-                'hidden_2': 128,
-                'hidden_3': 256,
-                'hidden_4': 512,
-                'drop': 0.5
+                'hidden_2': 512,
+                'drop': 0.7
             },
             'vertex_num': 468
         },

@@ -19,12 +19,10 @@ files:
   train_root: processed_data/train
 model:
   fc:
-    drop: 0.5
+    drop: 0.7
     hidden_1: 256
-    hidden_2: 128
-    hidden_3: 256
-    hidden_4: 512
-    in_feat: 576
+    hidden_2: 512
+    in_feat: 136
   lstm:
     hidden_dim: 16
     num_layers: 1

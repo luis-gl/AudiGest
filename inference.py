@@ -1,5 +1,4 @@
 import torch
-from torch.utils.data import dataset
 
 from utils.model.AudiGest import AudiGest
 from utils.model.MEADdataset import MEADDataset

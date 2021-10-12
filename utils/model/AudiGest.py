@@ -1,10 +1,9 @@
 import os
-from utils.model.LanguageExtractor import LanguageExtractor
 import torch
 
 from torch import nn
 from utils.model.EmotionEncoder import EmotionEncoder
-from utils.model.LanguageExtractor import LanguageExtractor
+from utils.model.SpeechExtractor import SpeechExtractor
 from utils.files.save import load_torch, save_torch
 
 
@@ -15,27 +14,36 @@ class AudiGest(nn.Module):
         self.config = config
 
         self.emotion_encoder = EmotionEncoder()
-        self.lang_encoder = LanguageExtractor(config)
+        self.speech_encoder = SpeechExtractor(config)
 
         fc_config = config['model']['fc']
         self.decoder = nn.Sequential(
-            nn.Linear(in_features=136, out_features=fc_config['hidden_1']),
+            nn.Linear(in_features=fc_config['in_feat'], out_features=fc_config['hidden_1']),
             nn.ReLU(),
             nn.Dropout(fc_config['drop']),
             nn.Linear(in_features=fc_config['hidden_1'], out_features=fc_config['hidden_2']),
+            nn.ReLU(),
+            nn.Dropout(fc_config['drop']),
+            nn.Linear(in_features=fc_config['hidden_2'], out_features=fc_config['hidden_3']),
+            nn.ReLU(),
+            nn.Dropout(fc_config['drop']),
+            nn.Linear(in_features=fc_config['hidden_3'], out_features=fc_config['hidden_4']),
             nn.Tanh(),
-            nn.Linear(in_features=fc_config['hidden_2'], out_features=config['model']['vertex_num']*3)
+            nn.Linear(in_features=fc_config['hidden_4'], out_features=config['model']['vertex_num']*3)
         )
 
-    def forward(self, melspec: torch.Tensor, mfcc: torch.Tensor, base_target: torch.Tensor,
-                hidden: tuple[torch.Tensor, torch.Tensor]=None):
-        em = self.emotion_encoder(melspec)              # -> [B, 8]
-        lang, hidden = self.lang_encoder(mfcc, hidden)  # -> [B, 128]
-        concat = torch.cat((lang, em), 1)               # -> [B, 136]
-        offset = self.decoder(concat)            # -> [B, 1404]
-        offset = torch.reshape(offset, (-1, self.config['model']['vertex_num'], 3))
-        reconstructed = base_target + offset
-        return reconstructed, hidden    # -> [B, 468, 3], ([1, B, 16], [1, B, 16])
+    def forward(self, melspec: torch.Tensor, mfcc: torch.Tensor, base_target: torch.Tensor, hidden: torch.Tensor=None):
+        encoded_em = self.emotion_encoder(melspec)  # -> [B, 16, 3, 2]
+        encoded_speech, hidden = self.speech_encoder(mfcc, hidden)
+        # -> [B, 30, 16], [1, B, 16], [1, B, 16]
+
+        encoded_em = encoded_em.flatten(start_dim=1)
+        encoded_speech = encoded_speech.flatten(start_dim=1)
+        concat = torch.cat((encoded_speech, encoded_em), 1)
+        offsets = self.decoder(concat)
+        offsets = torch.reshape(offsets, (-1, self.config['model']['vertex_num'], 3))
+        reconstructed = base_target + offsets
+        return reconstructed, hidden
 
     def save(self, epoch: int, optimizer: torch.optim.Optimizer,
             scheduler: torch.optim.lr_scheduler.ExponentialLR,

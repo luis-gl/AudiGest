@@ -1,5 +1,3 @@
-from genericpath import isfile
-from ntpath import join
 import numpy as np
 import os
 import random
@@ -8,6 +6,7 @@ import torch
 import torch.nn as nn
 
 from config_creator import get_config
+from utils.model.losses import *
 from torch.utils import data
 from tqdm import tqdm
 from utils.model.MEADdataset import MEADDataset
@@ -48,22 +47,26 @@ def get_last_epoch() -> int:
     return last_checkpoint
 
 
-def train_step(train_dl: data.DataLoader, model: AudiGest, loss_fn: nn.MSELoss,
+def train_step(config: dict, train_dl: data.DataLoader, model: AudiGest, loss_fn_dict: dict,
                optimizer: torch.optim.Optimizer, device: torch.device,
                epoch: int, num_epochs: int) -> float:
     model.train()
 
     optimizer.zero_grad()
 
-    n = len(train_dl.dataset)
+    n = config['training']['batch_size'] * config['training']['consecutive_seqs'] * len(train_dl)
     train_loss = 0.0
 
     hidden = None
 
     train_loop = tqdm(enumerate(train_dl), total=len(train_dl), leave=False)
     for _, (melspec, mfcc, target, base_target) in train_loop:
+        melspec = melspec.reshape(-1, *melspec.shape[2:])
         melspec = melspec.unsqueeze(1)
+        mfcc = mfcc.reshape(-1, *mfcc.shape[2:])
         mfcc = mfcc.permute(0, 2, 1)
+        target = target.reshape(-1, *target.shape[2:])
+        base_target = base_target.reshape(-1, *base_target.shape[2:])
 
         melspec = melspec.to(device)
         mfcc = mfcc.to(device)
@@ -71,7 +74,9 @@ def train_step(train_dl: data.DataLoader, model: AudiGest, loss_fn: nn.MSELoss,
         base_target = base_target.to(device)
 
         reconstructed, hidden = model(melspec, mfcc, base_target, hidden)
-        loss = loss_fn(reconstructed, target)
+        rec_loss = loss_fn_dict['rec'](reconstructed, target)
+        vel_loss = loss_fn_dict['vel'](reconstructed, target)
+        loss = rec_loss + vel_loss
         
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
@@ -89,11 +94,11 @@ def train_step(train_dl: data.DataLoader, model: AudiGest, loss_fn: nn.MSELoss,
     return train_loss
 
 
-def validation_step(val_dl: data.DataLoader, model: AudiGest, loss_fn: nn.MSELoss,
+def validation_step(config: dict, val_dl: data.DataLoader, model: AudiGest, loss_fn_dict: dict,
                     device: torch.device, epoch: int, num_epochs: int) -> float:
     model.eval()
 
-    n = len(val_dl.dataset)
+    n = config['training']['batch_size'] * config['training']['consecutive_seqs'] * len(val_dl)
     val_loss = 0.0
 
     hidden = None
@@ -101,8 +106,12 @@ def validation_step(val_dl: data.DataLoader, model: AudiGest, loss_fn: nn.MSELos
     with torch.no_grad():
         val_loop = tqdm(enumerate(val_dl), total=len(val_dl), leave=False)
         for _, (melspec, mfcc, target, base_target) in val_loop:
+            melspec = melspec.reshape(-1, *melspec.shape[2:])
             melspec = melspec.unsqueeze(1)
+            mfcc = mfcc.reshape(-1, *mfcc.shape[2:])
             mfcc = mfcc.permute(0, 2, 1)
+            target = target.reshape(-1, *target.shape[2:])
+            base_target = base_target.reshape(-1, *base_target.shape[2:])
 
             melspec = melspec.to(device)
             mfcc = mfcc.to(device)
@@ -110,7 +119,9 @@ def validation_step(val_dl: data.DataLoader, model: AudiGest, loss_fn: nn.MSELos
             base_target = base_target.to(device)
 
             reconstructed, hidden = model(melspec, mfcc, base_target, hidden)
-            loss = loss_fn(reconstructed, target)
+            rec_loss = loss_fn_dict['rec'](reconstructed, target)
+            vel_loss = loss_fn_dict['vel'](reconstructed, target)
+            loss = rec_loss + vel_loss
             
             current_loss = loss.item() * val_dl.batch_size
 
@@ -124,29 +135,36 @@ def validation_step(val_dl: data.DataLoader, model: AudiGest, loss_fn: nn.MSELos
     return val_loss
 
 
-def train_model(train_dl: data.DataLoader, val_dl: data.DataLoader, model: AudiGest,
+def train_model(config: dict, train_dl: data.DataLoader, val_dl: data.DataLoader, model: AudiGest,
                 optimizer: torch.optim, scheduler: torch.optim.lr_scheduler.ExponentialLR,
                 train_hist: list[float], val_hist: list[float],
                 device: torch.device, last_epoch: int, num_epochs: int) -> dict:
 
     train_loss_history = train_hist if train_hist is not None else []
     val_loss_history = val_hist if val_hist is not None else []
-    loss_fn = nn.MSELoss()
+
+    rec_loss = nn.L1Loss()
+    vel_loss = VelocityLoss(config, rec_loss)
+
+    loss_fn_dict = {
+        'rec': rec_loss,
+        'vel': vel_loss
+    }
 
     model = model.to(device)
 
-    if last_epoch + 1 > 0:
+    if last_epoch > 0:
         print('Resuming training')
 
     for epoch in range(last_epoch + 1, num_epochs + 1):
         s = time.time()
-        train_loss = train_step(train_dl, model, loss_fn, optimizer, device, epoch, num_epochs)
-        val_loss = validation_step(val_dl, model, loss_fn, device, epoch, num_epochs)
+        train_loss = train_step(config, train_dl, model, loss_fn_dict, optimizer, device, epoch, num_epochs)
+        val_loss = validation_step(config, val_dl, model, loss_fn_dict, device, epoch, num_epochs)
 
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
 
-        print(f'epoch {epoch}/{num_epochs}: {(time.time() - s) / 60}')
+        print(f'epoch {epoch}/{num_epochs}: {(time.time() - s) / 60:.4f} minutes')
         print('train loss:', train_loss)
         print('val loss:', val_loss)
 
@@ -164,7 +182,7 @@ def train_model(train_dl: data.DataLoader, val_dl: data.DataLoader, model: AudiG
 
 def main():
     config = get_config()
-    set_seed(42, False)
+    set_seed(42, True)
 
     train_data = MEADDataset(partition='train', config=config)
     val_data = MEADDataset(partition='val', config=config)
@@ -192,8 +210,8 @@ def main():
     if scheduler_st is not None:
         scheduler.load_state_dict(scheduler_st)
     
-    model_dict = train_model(train_dl, val_dl, model, optimizer, scheduler, train_hist, val_hist, device, last_epoch, epochs)
-    plot_loss(model_dict, 'AudiGest', save=True, test=True)
+    model_dict = train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_hist, val_hist, device, last_epoch, epochs)
+    plot_loss(model_dict, 'AudiGest2', save=True, test=False)
 
 
 if __name__ == '__main__':

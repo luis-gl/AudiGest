@@ -10,6 +10,8 @@ class MEADDataset(Dataset):
     def __init__(self, partition: str, config: dict):
 
         self.partition = partition
+        self.consecutive_seqs = config['training']['consecutive_seqs']
+        self.remain_seqs = self.consecutive_seqs - 1
         self.data_root = config['files'][partition]['root']
         self.audio_dir = 'clean_audio' if config['audio']['use_clean'] else 'audio'
         self.landmarks_dir = 'landmarks'
@@ -24,15 +26,19 @@ class MEADDataset(Dataset):
         return len(self.csv_data)
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        melspec_path, mfcc_path, lmks_path, base_lmks_path = self._get_element_path(index)
+        if index + self.consecutive_seqs - 1 >= len(self.csv_data):
+            index = len(self.csv_data) - self.consecutive_seqs
+        
+        melspec_path, mfcc_paths, lmks_paths, base_lmks_path = self._get_element_paths(index)
         melspec = load_torch(melspec_path)
-        mfcc = load_torch(mfcc_path)
-        target = load_numpy(lmks_path)
-        target = torch.from_numpy(target).type(torch.float32)
+        melspec = melspec.repeat(len(mfcc_paths), 1, 1)
+        seq_mfcc = torch.stack(self._get_element_data(mfcc_paths, 'torch'))
+        seq_targets = torch.stack(self._get_element_data(lmks_paths, 'numpy'))
         base_target = load_numpy(base_lmks_path)
         base_target = torch.from_numpy(base_target).type(torch.float32)
+        base_target = base_target.repeat(len(mfcc_paths), 1, 1)
 
-        return melspec, mfcc, target, base_target
+        return melspec, seq_mfcc, seq_targets, base_target
 
     def get_sequence(self, index: int):
         melspec_file, mfcc_container, lmks_container, sbj, e, lv, fname = self._get_inference_item_path(index)
@@ -63,17 +69,56 @@ class MEADDataset(Dataset):
         lmks_container = os.path.join(container_dir, self.landmarks_dir, fname)
         mfcc_container = os.path.join(container_dir, self.mfcc_dir, fname)
         return melspec_file, mfcc_container, lmks_container, sbj, e, f'level_{lv}', fname
+    
+    def _get_element_data(self, element_paths, load_type='torch'):
+        data_list = []
+        for e in element_paths:
+            if load_type == 'torch':
+                data = load_torch(e)
+            else:
+                data = load_numpy(e)
+                data = torch.from_numpy(data).type(torch.float32)
+            data_list.append(data)
+        return data_list
 
-    def _get_element_path(self, index: int) -> tuple[str, str, str, str]:
+    def _get_element_paths(self, index: int) -> tuple[str, str, str, str]:
         sbj, e, lv, audio, melspec, lmks, mfcc = self.csv_data.iloc[index]
+
+        lmks_list = []
+        mfcc_list = []
+        for i in range(1, self.consecutive_seqs):
+            _, _, _, audio2, _, _, _ = self.csv_data.iloc[index + i]
+            if audio != audio2:
+                index += i - self.consecutive_seqs
+                sbj, e, lv, audio, melspec, lmks, mfcc = self.csv_data.iloc[index]
+                break
+        lmks_list.append(lmks)
+        mfcc_list.append(mfcc)
+
+        for i in range(1, self.consecutive_seqs):
+            _, _, _, _, _, current_lmks, current_mfcc = self.csv_data.iloc[index + i]
+            lmks_list.append(current_lmks)
+            mfcc_list.append(current_mfcc)
+
         audio = audio.split('.')[0]
         container_dir = os.path.join(self.data_root, sbj, e, f'level_{lv}')
+
         melspec_file = os.path.join(container_dir, self.melspec_dir, melspec)
         melspec_file = melspec_file.replace('processed_data/', '')
-        target_lmks_file = os.path.join(container_dir, self.landmarks_dir, audio, lmks)
-        target_lmks_file = target_lmks_file.replace('processed_data/', '')
-        first_lmks_file = os.path.join(container_dir, self.landmarks_dir, audio, '001.npy')
-        first_lmks_file = first_lmks_file.replace('processed_data/', '')
-        mfcc_file = os.path.join(container_dir, self.mfcc_dir, audio, mfcc)
-        mfcc_file = mfcc_file.replace('processed_data/', '')
-        return melspec_file, mfcc_file, target_lmks_file, first_lmks_file
+
+        base_lmks_file = os.path.join(self.data_root, sbj, 'base.npy')
+        base_lmks_file = base_lmks_file.replace('processed_data/', '')
+
+        target_lmks_files = self._get_sequence_paths('lmks', lmks_list, container_dir, audio)
+        mfcc_files = self._get_sequence_paths('mfcc', mfcc_list, container_dir, audio)
+
+        return melspec_file, mfcc_files, target_lmks_files, base_lmks_file
+    
+    def _get_sequence_paths(self, element_type, elements, container_dir, audio):
+        file_paths = []
+        element_dir = self.landmarks_dir if element_type == 'lmks' else self.mfcc_dir
+        for e in elements:
+            file = os.path.join(container_dir, element_dir, audio, e)
+            file = file.replace('processed_data/', '')
+            file_paths.append(file)
+        return file_paths

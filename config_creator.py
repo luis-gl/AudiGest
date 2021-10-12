@@ -49,18 +49,22 @@ def create_default_config():
                 'num_layers': 1,
             },
             'fc': {
-                'in_feat': 136,
+                'in_feat': 576,
                 'hidden_1': 256,
-                'hidden_2': 512,
+                'hidden_2': 128,
+                'hidden_3': 256,
+                'hidden_4': 512,
                 'drop': 0.7
             },
-            'vertex_num': 468
+            'vertex_num': 468,
+            'velocity_weight': 10.0
         },
         'training': {
             'batch_size': 64,
             'learning_rate': 1e-4,
-            'epochs': 50,
-            'decay_rate': 1.0
+            'epochs': 40,
+            'decay_rate': 1.0,
+            'consecutive_seqs': 2
         }
     }
 

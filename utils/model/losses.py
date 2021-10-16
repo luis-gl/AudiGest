@@ -11,8 +11,7 @@ class VelocityLoss(nn.Module):
         self.reconstruction_loss = rec_loss
 
     def forward(self, predicted, target):
-        if self.weight > 0:
-            assert (self.consecutive_seqs >= 2)
+        if self.weight > 0 and self.consecutive_seqs >= 2:
             verts_predicted = torch.reshape(predicted, (-1, self.consecutive_seqs, self.vertex_num, 3))
             x1_pred = torch.reshape(verts_predicted[:, -1, :], (-1, self.vertex_num, 3))
             x2_pred = torch.reshape(verts_predicted[:, -2, :], (-1, self.vertex_num, 3))

@@ -54,7 +54,8 @@ def train_step(config: dict, train_dl: data.DataLoader, model: AudiGest, loss_fn
 
     optimizer.zero_grad()
 
-    n = config['training']['batch_size'] * config['training']['consecutive_seqs'] * len(train_dl)
+    consecutive_seqs = config['training']['consecutive_seqs']
+    n = config['training']['batch_size'] * consecutive_seqs * len(train_dl)
     train_loss = 0.0
 
     hidden = None
@@ -211,7 +212,7 @@ def main():
         scheduler.load_state_dict(scheduler_st)
     
     model_dict = train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_hist, val_hist, device, last_epoch, epochs)
-    plot_loss(model_dict, 'AudiGest2', save=True, test=False)
+    plot_loss(model_dict, 'AudiGest2', save=True, test=True)
 
 
 if __name__ == '__main__':

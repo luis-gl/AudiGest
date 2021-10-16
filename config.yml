@@ -38,7 +38,7 @@ model:
   vertex_num: 468
 training:
   batch_size: 64
-  consecutive_seqs: 2
+  consecutive_seqs: 1
   decay_rate: 1.0
-  epochs: 20
+  epochs: 5
   learning_rate: 0.0001

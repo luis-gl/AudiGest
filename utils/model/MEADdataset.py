@@ -11,7 +11,6 @@ class MEADDataset(Dataset):
 
         self.partition = partition
         self.consecutive_seqs = config['training']['consecutive_seqs']
-        self.remain_seqs = self.consecutive_seqs - 1
         self.data_root = config['files'][partition]['root']
         self.audio_dir = 'clean_audio' if config['audio']['use_clean'] else 'audio'
         self.landmarks_dir = 'landmarks'
@@ -51,13 +50,17 @@ class MEADDataset(Dataset):
         lmks_paths = [os.path.join(short_dir_lmks, file) for file in os.listdir(lmks_container)]
 
         mfcc_list = [load_torch(file) for file in mfcc_paths]
-        lmks_list = [torch.from_numpy(load_numpy(file)) for file in lmks_paths]
+        lmks_list = [torch.from_numpy(load_numpy(file)).type(torch.float32) for file in lmks_paths]
+
+        base_target = load_numpy(os.path.join(self.partition, sbj, 'base.npy'))
+        base_target = torch.from_numpy(base_target).type(torch.float32)
 
         melspec = melspec.repeat(len(mfcc_list), 1, 1)
         mfcc = torch.stack(mfcc_list)
         target = torch.stack(lmks_list)
+        base_target = base_target.repeat(len(mfcc_list), 1, 1)
 
-        return melspec, mfcc, target, sbj, e, lv, fname
+        return melspec, mfcc, target, base_target, sbj, e, lv, fname
 
 
     def _get_inference_item_path(self, index: int) -> tuple[str, str, str]:
@@ -84,14 +87,15 @@ class MEADDataset(Dataset):
     def _get_element_paths(self, index: int) -> tuple[str, str, str, str]:
         sbj, e, lv, audio, melspec, lmks, mfcc = self.csv_data.iloc[index]
 
-        lmks_list = []
-        mfcc_list = []
         for i in range(1, self.consecutive_seqs):
             _, _, _, audio2, _, _, _ = self.csv_data.iloc[index + i]
             if audio != audio2:
                 index += i - self.consecutive_seqs
-                sbj, e, lv, audio, melspec, lmks, mfcc = self.csv_data.iloc[index]
                 break
+
+        lmks_list = []
+        mfcc_list = []
+        sbj, e, lv, audio, melspec, lmks, mfcc = self.csv_data.iloc[index]
         lmks_list.append(lmks)
         mfcc_list.append(mfcc)
 
@@ -115,8 +119,12 @@ class MEADDataset(Dataset):
         return melspec_file, mfcc_files, target_lmks_files, base_lmks_file
     
     def _get_sequence_paths(self, element_type, elements, container_dir, audio):
+        if element_type == 'lmks':
+            element_dir = self.landmarks_dir
+        else:
+            element_dir = self.mfcc_dir
+
         file_paths = []
-        element_dir = self.landmarks_dir if element_type == 'lmks' else self.mfcc_dir
         for e in elements:
             file = os.path.join(container_dir, element_dir, audio, e)
             file = file.replace('processed_data/', '')

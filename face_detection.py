@@ -7,7 +7,7 @@ from utils.files.save import save_numpy
 
 class FaceDetector:
     def __init__(self, confidence: float = 0.5, display_landmarks: bool = False,
-                 debug_color: tuple[int, int, int] = (255, 255, 0),
+                 debug_color: tuple[int, int, int] = (255, 0, 0),
                  debug_thickness: int = 1, debug_circle_radius: int = 1):
         """
         Class to extract face landmarks from video.
@@ -78,11 +78,11 @@ class FaceDetector:
                     continue
 
                 self.mp_drawing.draw_landmarks(image=img, landmark_list=frame_landmarks,
-                                               connections=self.mp_face_mesh.FACE_CONNECTIONS,
+                                               # connections=self.mp_face_mesh.FACEMESH_CONTOURS,
                                                landmark_drawing_spec=self.drawing_spec,
                                                connection_drawing_spec=self.drawing_spec)
                 cv2.imshow('Face landmarks', img)
-                if cv2.waitKey(20) == ord('s'):
+                if cv2.waitKey(30) == ord('s'):
                     break
 
         video.release()
@@ -94,10 +94,10 @@ class FaceDetector:
 
 def main():
     video_path = 'MEAD/M003/video/front/angry/level_2/001.mp4'
-    detector = FaceDetector(display_landmarks=False, confidence=0.8)
+    detector = FaceDetector(display_landmarks=True, confidence=0.8)
     video_landmarks = detector.get_face_landmarks(video_path=video_path)
     print(video_landmarks.shape)
-    save_numpy(video_landmarks, 'test.npy')
+    # save_numpy(video_landmarks, 'test.npy')
 
 
 if __name__ == "__main__":

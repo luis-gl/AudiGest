@@ -2,118 +2,76 @@ import os
 from utils.files.save import save_pickle, load_pickle
 
 
-def get_valid_subjects_paths(project_root: str = '') -> dict:
+def create_subject_dict(config: dict, project_root: str = None):
+    phases = ['train', 'val', 'test']
     data_root = 'MEAD'
-    emotions = ['angry', 'contempt', 'disgusted', 'fear', 'happy', 'neutral', 'sad', 'surprised']
-
-    data_path = os.path.join(project_root, data_root)
-    if not os.path.exists(data_path) or not os.path.isdir(data_path):
-        raise ValueError('MEAD dataset is not in {} directory'.format(project_root))
-
-    subjects = [sbj for sbj in os.listdir(data_path)]
-
+    emotions = config['emotions']
+    files_dict = config['files']
     audio_common_path = 'audio'
     video_common_path = os.path.join('video', 'front')
 
-    emotions_set = set(emotions)
-    sbj_dict = {}
+    if project_root is not None:
+        data_root = os.path.join(project_root, data_root)
+    if not os.path.exists(data_root) or not os.path.isdir(data_root):
+        raise ValueError('MEAD dataset is not in {} directory'.format(data_root))
 
-    for sbj in subjects:
-        audio_path = os.path.join(project_root, data_root, sbj, audio_common_path)
-        video_path = os.path.join(project_root, data_root, sbj, video_common_path)
+    subject_dict = {}
+    for phase in phases:
+        phase_subjects = files_dict[phase]['subjects']
 
-        if not os.path.exists(audio_path) or not os.path.exists(video_path):
-            print(f'Subject {sbj} filtered by common path')
-            subjects.remove(sbj)
-            continue
+        subject_dict[phase] = {}
+        for sbj in phase_subjects:
+            audio_path = os.path.join(data_root, sbj, audio_common_path)
+            video_path = os.path.join(data_root, sbj, video_common_path)
 
-        sbj_audio_emotions = os.listdir(audio_path)
-        sbj_video_emotions = os.listdir(video_path)
+            emotion_dict = {}
+            for e in emotions:
+                audio_e_path = os.path.join(audio_path, e)
+                video_e_path = os.path.join(video_path, e)
+                levels = os.listdir(audio_e_path)
 
-        per_quantity = len(sbj_audio_emotions) != len(sbj_video_emotions)
-        per_content = set(sbj_audio_emotions) != emotions_set or set(sbj_video_emotions) != emotions_set
-        if per_quantity or per_content:
-            print(f'Subject {sbj} filtered by emotion directories')
-            subjects.remove(sbj)
-            continue
+                lv_dict = {}
+                for lv in levels:
+                    audio_lv_path = os.path.join(audio_e_path, lv)
+                    video_lv_path = os.path.join(video_e_path, lv)
+                    audio_files = os.listdir(audio_lv_path)
+                    video_files = os.listdir(video_lv_path)
 
-        sbj_removed = False
-        e_dict = {}
+                    lv_dict[lv] = {}
+                    audio_list = []
+                    video_list = []
+                    for i in range(len(audio_files)):
+                        audio_fpath = os.path.join(audio_lv_path, audio_files[i])
+                        # Change '\\' by '/' if running on Linux
+                        audio_fpath = audio_fpath.replace('\\', '/')
+                        video_fpath = os.path.join(video_lv_path, video_files[i])
+                        video_fpath = video_fpath.replace('\\', '/')
+                        audio_list.append(audio_fpath)
+                        video_list.append(video_fpath)
+                    lv_dict[lv]['audio'] = audio_list
+                    lv_dict[lv]['video'] = video_list
 
-        for e in emotions:
-            audio_e_path = os.path.join(audio_path, e)
-            video_e_path = os.path.join(video_path, e)
+                emotion_dict[e] = lv_dict
 
-            audio_levels = os.listdir(audio_e_path)
-            video_levels = os.listdir(video_e_path)
+            subject_dict[phase][sbj] = emotion_dict
 
-            per_quantity = len(audio_levels) != len(video_levels)
-            per_content = set(audio_levels) != set(video_levels)
-            if per_quantity or per_content:
-                print(f'Subject {sbj} filtered by {e} level directories')
-                subjects.remove(sbj)
-                sbj_removed = True
-                break
+        print(f'Using {len(subject_dict[phase])} {phase} subjects')
 
-            lv_dict = {}
-
-            for lv in audio_levels:
-                audio_lv_path = os.path.join(audio_e_path, lv)
-                video_lv_path = os.path.join(video_e_path, lv)
-
-                audio_files = os.listdir(audio_lv_path)
-                video_files = os.listdir(video_lv_path)
-                audio_fnames = [os.path.splitext(fname)[0] for fname in audio_files]
-                video_fnames = [os.path.splitext(fname)[0] for fname in video_files]
-
-                per_quantity = len(audio_fnames) != len(video_fnames)
-                per_content = set(audio_fnames) != set(video_fnames)
-                if per_quantity or per_content:
-                    reason = 'quantity' if per_quantity else 'content'
-                    print(f'Subject {sbj} filtered by {e}/{lv} {reason} files:')
-                    subjects.remove(sbj)
-                    sbj_removed = True
-                    break
-
-                lv_dict[lv] = {}
-                lv_dict[lv]['audio'] = []
-                lv_dict[lv]['video'] = []
-                for i in range(len(audio_files)):
-                    audio_fpath = os.path.join(audio_lv_path, audio_files[i])
-                    audio_fpath = audio_fpath.replace('\\', '/')
-                    video_fpath = os.path.join(video_lv_path, video_files[i])
-                    video_fpath = video_fpath.replace('\\', '/')
-                    lv_dict[lv]['audio'].append(audio_fpath)
-                    lv_dict[lv]['video'].append(video_fpath)
-
-            if sbj_removed:
-                break
-
-            e_dict[e] = lv_dict
-
-        if sbj_removed:
-            continue
-
-        sbj_dict[sbj] = e_dict
-
-    print(f'using {len(sbj_dict)}')
-    print(f'{len(subjects)} subjects remain:\n{subjects}')
-
-    return sbj_dict
+    return subject_dict
 
 
-def get_data(project_root: str = ''):
+def get_data(config: dict, project_root: str = None):
     dict_fname = 'sbj_data_paths.pkl'
     try:
         data_dict = load_pickle(dict_fname)
     except ValueError:
         print(f'Creating new subject paths data.')
-        data_dict = get_valid_subjects_paths(project_root=project_root)
+        data_dict = create_subject_dict(config=config, project_root=project_root)
         save_pickle(data_dict, dict_fname)
-        print(f'Data saved on processed_data/{dict_fname}, using {len(data_dict)} subjects.')
+        print(f'Data saved on processed_data/{dict_fname}.')
         return data_dict
     else:
-        print(f'Loading existing subject video paths data, using {len(data_dict)} subjects.')
+        print(f'Loading existing subject video paths data.')
         return data_dict
 
 
@@ -121,13 +79,19 @@ def print_subject_dict(data_dict: dict = None):
     if not data_dict or data_dict is None:
         raise ValueError('Dictionary is None or Empty')
 
-    for sbj in data_dict:
-        print(f'{sbj}:')
-        for e in data_dict[sbj]:
-            print(f'\t{e}:')
-            for lv in data_dict[sbj][e]:
-                print(f'\t\t{lv}')
-                audio = data_dict[sbj][e][lv]['audio']
-                video = data_dict[sbj][e][lv]['video']
-                for i in range(len(audio)):
-                    print(f'\t\t\taudio: {audio[i]}\tvideo: {video[i]}')
+    phases = ['train', 'val', 'test']
+    for phase in phases:
+        phase_dict = data_dict[phase]
+        print(f'{phase}:')
+        for sbj in phase_dict:
+            sbj_dict = phase_dict[sbj]
+            print(f'\t{sbj}:')
+            for e in sbj_dict:
+                e_dict = sbj_dict[e]
+                print(f'\t\t{e}:')
+                for lv in e_dict:
+                    print(f'\t\t\t{lv}')
+                    audio = e_dict[lv]['audio']
+                    video = e_dict[lv]['video']
+                    for i in range(len(audio)):
+                        print(f'\t\t\t\taudio: {audio[i]}\tvideo: {video[i]}')

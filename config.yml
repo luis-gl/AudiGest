@@ -6,6 +6,15 @@ audio:
   sample_rate: 16000
   use_clean: true
   window_len: 0.025
+emotions:
+- angry
+- contempt
+- disgusted
+- fear
+- happy
+- neutral
+- sad
+- surprised
 files:
   data_root: processed_data
   face: processed_data/face.obj
@@ -15,14 +24,36 @@ files:
     csv: processed_data/test_dataset.csv
     mini: processed_data/test_mini.csv
     root: processed_data/test
+    subjects:
+    - M003
+    - M019
+    - W009
+    - W019
   train:
     csv: processed_data/train_dataset.csv
     mini: processed_data/train_mini.csv
     root: processed_data/train
+    subjects:
+    - M005
+    - M007
+    - M011
+    - M012
+    - M022
+    - M023
+    - M024
+    - M025
+    - M026
+    - W014
+    - W016
   val:
     csv: processed_data/val_dataset.csv
     mini: processed_data/val_mini.csv
     root: processed_data/val
+    subjects:
+    - M009
+    - M013
+    - W011
+    - W015
 model:
   fc:
     drop: 0.7
@@ -38,7 +69,7 @@ model:
   vertex_num: 468
 training:
   batch_size: 64
-  consecutive_seqs: 1
+  consecutive_seqs: 2
   decay_rate: 1.0
   epochs: 5
   learning_rate: 0.0001

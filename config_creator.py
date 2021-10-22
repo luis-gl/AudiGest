@@ -39,8 +39,8 @@ def create_default_config():
         },
         'audio': {
             'use_clean': True,
-            'sample_rate': 16000,
-            'max_samples': 16000,
+            'sample_rate': 44100,
+            'max_samples': 44100,
             'sample_interval': 1 / 30,
             'window_len': 0.025,
             'n_mfcc': 20,

@@ -5,16 +5,29 @@ import mediapipe as mp
 from utils.files.save import save_numpy
 
 
+def rescale_landmark_sequence(lmk_sequence: np.ndarray) -> np.ndarray:
+    sequence = lmk_sequence.copy()
+    sequence[:, :, 0] *= 16.0
+    sequence[:, :, 1] *= 9.0
+    sequence[:, :, 2] *= 16.0
+    return sequence
+
 class FaceDetector:
-    def __init__(self, confidence: float = 0.5, display_landmarks: bool = False,
+    def __init__(self,
+                 confidence: float = 0.5,
+                 apply_rescaling: bool = False,
+                 display_landmarks: bool = False,
                  debug_color: tuple[int, int, int] = (255, 0, 0),
-                 debug_thickness: int = 1, debug_circle_radius: int = 1):
+                 debug_thickness: int = 1,
+                 debug_circle_radius: int = 1):
         """
         Class to extract face landmarks from video.
 
         Args:
             confidence: Float number that represents minimum confidence ([0.0, 0.1]) for face landmark extractor to
                 be considered successful.
+            apply_rescaling: Boolean that defines if scale landmark point from normalized screen space (the rescaling
+                uses a 16:9 screen from MEAD videos).
             display_landmarks: Boolean that defines if show each frame with face landmarks.
             debug_color: Color tuple of integers (r, g, b) that will be applied to the landmark drawer when
                 displayed.
@@ -29,6 +42,13 @@ class FaceDetector:
         self.min_detection_confidence = confidence
         self.min_tracking_confidence = confidence
         self.display_landmarks = display_landmarks
+        self.apply_rescaling = apply_rescaling
+
+    def _rescale_landmark(self, landmark_point: list) -> list:
+        landmark_point[0] *= 16.0
+        landmark_point[1] *= 9.0
+        landmark_point[2] *= 16.0
+        return landmark_point
 
     def get_face_landmarks(self, video_path: str = "") -> np.ndarray:
         """
@@ -71,7 +91,10 @@ class FaceDetector:
                 frame_landmarks = results.multi_face_landmarks[0]
                 lm_list = []
                 for lm in frame_landmarks.landmark:
-                    lm_list.append([lm.x - 0.5, -(lm.y - 0.5), lm.z])
+                    lm_point = [lm.x - 0.5, -(lm.y - 0.5), lm.z]
+                    if self.apply_rescaling:
+                        lm_point = self._rescale_landmark(lm_point)
+                    lm_list.append(lm_point)
                 video_landmarks.append(lm_list)
 
                 if not self.display_landmarks:

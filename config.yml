@@ -1,9 +1,9 @@
 audio:
   fps: 30
-  max_samples: 16000
+  max_samples: 44100
   n_mfcc: 20
   sample_interval: 0.03333333333333333
-  sample_rate: 16000
+  sample_rate: 44100
   use_clean: true
   window_len: 0.025
 emotions:

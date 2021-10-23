@@ -1,3 +1,4 @@
+import numpy as np
 import os
 import pandas as pd
 
@@ -30,6 +31,17 @@ def transform_landmark_files(phase, lmks_path, lmks_fname):
     convert_to_txt(norm_rs_seq_lmks, f'{lmks_fname}rsn_{phase}.txt')
 
 
+def normalize_sequence(seq: np.ndarray, rs_seq: np.ndarray):
+    seq_lmks = seq.copy()
+    rs_seq_lmks = rs_seq.copy()
+    centers = seq_lmks.mean(axis=1)
+    rs_centers = rs_seq_lmks.mean(axis=1)
+    for idx in range(seq_lmks.shape[0]):
+        seq_lmks[idx, :] -= centers[idx]
+        rs_seq_lmks[idx, :] -= rs_centers[idx]
+    return seq_lmks, rs_seq_lmks
+
+
 def main():
     for phase in ['train', 'val', 'test']:
         phase_data = pd.read_csv(f'processed_data/{phase}_subjects.csv')
@@ -43,11 +55,7 @@ def main():
             scaled_lmks_file = os.path.join(lmks_path, f'{lmks}rs.npy')
             seq_lmks = load_numpy(lmks_file)
             rs_seq_lmks = load_numpy(scaled_lmks_file)
-            centers = seq_lmks.mean(axis=1)
-            rs_centers = rs_seq_lmks.mean(axis=1)
-            for idx in range(seq_lmks.shape[0]):
-                seq_lmks[idx, :] -= centers[idx]
-                rs_seq_lmks[idx, :] -= rs_centers[idx]
+            seq_lmks, rs_seq_lmks = normalize_sequence(seq_lmks, rs_seq_lmks)
             save_numpy(seq_lmks, file_name=f'{lmks}n.npy', dir_path=lmks_path)
             save_numpy(rs_seq_lmks, file_name=f'{lmks}rsn.npy', dir_path=lmks_path)
 

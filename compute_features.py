@@ -4,6 +4,7 @@ from tqdm import tqdm
 
 from config_creator import get_config
 from face_detection import rescale_landmark_sequence
+from landmark_normalization import normalize_sequence
 from utils.files.save import load_numpy, save_numpy
 from utils.audio import AudioFeatureExtractor
 
@@ -43,17 +44,22 @@ def generate_subject_data(csv_data: pd.DataFrame,
         assert mfcc_frames == video_frames
 
         save_numpy(framed_mfccs, file_name=f'{audio_fname}_{sample_rate}f.npy', dir_path=mfcc_path)
-        rescaled_landmarks = rescale_landmark_sequence(video_landmarks)
         save_numpy(video_landmarks, file_name=f'{audio_fname}.npy', dir_path=lmks_path)
+        rescaled_landmarks = rescale_landmark_sequence(video_landmarks)
         save_numpy(rescaled_landmarks, file_name=f'{audio_fname}rs.npy', dir_path=lmks_path)
+        norm_video_landmarks, norm_rs_landmarks = normalize_sequence(video_landmarks, rescaled_landmarks)
+        save_numpy(norm_video_landmarks, file_name=f'{audio_fname}n.npy', dir_path=lmks_path)
+        save_numpy(norm_rs_landmarks, file_name=f'{audio_fname}rsn.npy', dir_path=lmks_path)
 
         framed_mfcc_path = os.path.join(mfcc_path, audio_fname)
         framed_lmks_path = os.path.join(lmks_path, audio_fname)
 
-        for idx in range(mfcc_frames):
+        for idx in range(video_frames):
             save_numpy(framed_mfccs[idx], file_name=f'{(idx + 1):03d}_{sample_rate}.npy', dir_path=framed_mfcc_path)
             save_numpy(video_landmarks[idx], file_name=f'{(idx + 1):03d}.npy', dir_path=framed_lmks_path)
             save_numpy(rescaled_landmarks[idx], file_name=f'{(idx + 1):03d}rs.npy', dir_path=framed_lmks_path)
+            save_numpy(norm_video_landmarks[idx], file_name=f'{(idx + 1):03d}n.npy', dir_path=framed_lmks_path)
+            save_numpy(norm_rs_landmarks[idx], file_name=f'{(idx + 1):03d}rsn.npy', dir_path=framed_lmks_path)
 
 
 def main():

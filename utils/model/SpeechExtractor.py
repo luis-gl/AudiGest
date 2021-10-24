@@ -9,7 +9,7 @@ class SpeechExtractor(nn.Module):
 
         self.config = config
 
-        self.input_dim = config['audio']['n_mfcc']
+        self.input_dim = config['audio']['n_mfcc'] * 2
         self.hidden_dim = config['model']['lstm']['hidden_dim']
         self.layers = config['model']['lstm']['num_layers']
 

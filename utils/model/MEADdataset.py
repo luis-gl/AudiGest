@@ -7,7 +7,7 @@ from utils.files.save import load_numpy, load_torch
 
 
 class MEADDataset(Dataset):
-    def __init__(self, partition: str, config: dict):
+    def __init__(self, partition: str, config: dict, use_rescaled: bool = False, use_norm: bool = False):
 
         self.partition = partition
         self.consecutive_seqs = config['training']['consecutive_seqs']
@@ -20,6 +20,11 @@ class MEADDataset(Dataset):
         self.csv_data = pd.read_csv(self.csv_file)
         self.mini_file = config['files'][partition]['mini']
         self.csv_mini = pd.read_csv(self.mini_file)
+        self.emotions = config['emotions']
+        self.e_to_idx = {self.emotions[idx]: idx for idx, _ in enumerate(self.emotions)}
+        self.sample_rate = config['audio']['sample_rate']
+        self.use_rescaled = use_rescaled
+        self.use_norm = use_norm
 
     def __len__(self):
         return len(self.csv_data)
@@ -28,20 +33,23 @@ class MEADDataset(Dataset):
         if index + self.consecutive_seqs - 1 >= len(self.csv_data):
             index = len(self.csv_data) - self.consecutive_seqs
         
-        melspec_path, mfcc_paths, lmks_paths, base_lmks_path = self._get_element_paths(index)
-        melspec = load_torch(melspec_path)
-        melspec = melspec.repeat(len(mfcc_paths), 1, 1)
-        seq_mfcc = torch.stack(self._get_element_data(mfcc_paths, 'torch'))
+        # melspec_path, mfcc_paths, lmks_paths, base_lmks_path = self._get_element_paths(index)
+        emo, mfcc_paths, lmks_paths, base_lmks_path = self._get_element_paths(index)
+        # melspec = load_torch(melspec_path)
+        # melspec = melspec.repeat(len(mfcc_paths), 1, 1)
+        seq_mfcc = torch.stack(self._get_element_data(mfcc_paths, 'numpy'))
         seq_targets = torch.stack(self._get_element_data(lmks_paths, 'numpy'))
         base_target = load_numpy(base_lmks_path)
         base_target = torch.from_numpy(base_target).type(torch.float32)
         base_target = base_target.repeat(len(mfcc_paths), 1, 1)
+        emotion_idx = [self.e_to_idx[emo]] * len(mfcc_paths)
+        emotion_idx = torch.Tensor(emotion_idx).type(torch.int64)
 
-        return melspec, seq_mfcc, seq_targets, base_target
+        return emotion_idx, seq_mfcc, seq_targets, base_target
 
     def get_sequence(self, index: int):
         melspec_file, mfcc_container, lmks_container, sbj, e, lv, fname = self._get_inference_item_path(index)
-        melspec = load_torch(melspec_file)
+        # melspec = load_torch(melspec_file)
 
         short_dir_mfcc = mfcc_container.replace('processed_data/', '')
         short_dir_lmks = lmks_container.replace('processed_data/', '')
@@ -49,18 +57,21 @@ class MEADDataset(Dataset):
         mfcc_paths = [os.path.join(short_dir_mfcc, file) for file in os.listdir(mfcc_container)]
         lmks_paths = [os.path.join(short_dir_lmks, file) for file in os.listdir(lmks_container)]
 
-        mfcc_list = [load_torch(file) for file in mfcc_paths]
+        mfcc_list = [torch.from_numpy(load_numpy(file)).type(torch.float32) for file in mfcc_paths]
         lmks_list = [torch.from_numpy(load_numpy(file)).type(torch.float32) for file in lmks_paths]
 
-        base_target = load_numpy(os.path.join(self.partition, sbj, 'base.npy'))
+        suffix = self._get_file_suffix('lmks')
+        base_target = load_numpy(os.path.join(self.partition, sbj, f'{sbj}{suffix}.npy'))
         base_target = torch.from_numpy(base_target).type(torch.float32)
 
-        melspec = melspec.repeat(len(mfcc_list), 1, 1)
+        # melspec = melspec.repeat(len(mfcc_list), 1, 1)
+        emotion = torch.tensor(self.e_to_idx[e])
+        emotion = emotion.repeat(len(mfcc_list))
         mfcc = torch.stack(mfcc_list)
         target = torch.stack(lmks_list)
         base_target = base_target.repeat(len(mfcc_list), 1, 1)
 
-        return melspec, mfcc, target, base_target, sbj, e, lv, fname
+        return emotion, mfcc, target, base_target, sbj, e, lv, fname
 
 
     def _get_inference_item_path(self, index: int) -> tuple[str, str, str]:
@@ -107,26 +118,41 @@ class MEADDataset(Dataset):
         audio = audio.split('.')[0]
         container_dir = os.path.join(self.data_root, sbj, e, f'level_{lv}')
 
-        melspec_file = os.path.join(container_dir, self.melspec_dir, melspec)
-        melspec_file = melspec_file.replace('processed_data/', '')
+        # melspec_file = os.path.join(container_dir, self.melspec_dir, melspec)
+        # melspec_file = melspec_file.replace('processed_data/', '')
 
-        base_lmks_file = os.path.join(self.data_root, sbj, 'base.npy')
+        suffix = self._get_file_suffix('lmks')
+        base_lmks_file = os.path.join(self.data_root, sbj, f'{sbj}{suffix}.npy')
         base_lmks_file = base_lmks_file.replace('processed_data/', '')
 
         target_lmks_files = self._get_sequence_paths('lmks', lmks_list, container_dir, audio)
         mfcc_files = self._get_sequence_paths('mfcc', mfcc_list, container_dir, audio)
 
-        return melspec_file, mfcc_files, target_lmks_files, base_lmks_file
+        # return melspec_file, mfcc_files, target_lmks_files, base_lmks_file
+        return e, mfcc_files, target_lmks_files, base_lmks_file
+
+    def _get_file_suffix(self, file_type: str = 'lmks'):
+        if file_type == 'lmks':
+            suffix = ''
+            if self.use_rescaled:
+                suffix += 'rs'
+            if self.use_norm:
+                suffix += 'n'
+            return suffix
+        else:
+            return f'_{self.sample_rate}'
     
     def _get_sequence_paths(self, element_type, elements, container_dir, audio):
         if element_type == 'lmks':
             element_dir = self.landmarks_dir
         else:
             element_dir = self.mfcc_dir
+        suffix = self._get_file_suffix(element_type)
 
         file_paths = []
         for e in elements:
-            file = os.path.join(container_dir, element_dir, audio, e)
+            e = e.split('.')[0]
+            file = os.path.join(container_dir, element_dir, audio, f'{e}{suffix}.npy')
             file = file.replace('processed_data/', '')
             file_paths.append(file)
         return file_paths

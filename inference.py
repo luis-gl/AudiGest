@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as  plt
 import torch
+import torch.nn.functional as F
 
 from utils.model.AudiGest import AudiGest
 from utils.model.MEADdataset import MEADDataset
@@ -14,12 +15,12 @@ def mse(predicted: torch.tensor, target: torch.tensor) -> float:
     return torch.square(predicted - target).mean().item()
 
 
-def graph_face(faces: np.ndarray, rows: int, cols: int):
+def graph_face(faces: np.ndarray, rows: int, cols: int, start_idx: int):
     n = rows * cols
     fig = plt.figure()
-    for i in range(n):
+    for i in range(start_idx, start_idx + n):
         face = faces[i].T
-        ax = fig.add_subplot(rows, cols, i + 1, projection='3d')
+        ax = fig.add_subplot(rows, cols, i - start_idx + 1, projection='3d')
         ax.scatter(face[0], face[1], face[2])
     plt.show()
 
@@ -31,7 +32,9 @@ def make_inference(model: AudiGest, device: torch.device, melspec: torch.Tensor,
     hidden = None
 
     with torch.no_grad():
-        melspec = melspec.unsqueeze(1)
+        # melspec = melspec.unsqueeze(1)
+        # melspec = melspec.to(device)
+        melspec = F.one_hot(melspec, 8)
         melspec = melspec.to(device)
 
         mfcc = mfcc.permute(0, 2, 1)
@@ -53,24 +56,24 @@ def main():
     print(f'Using {device}')
 
     model = AudiGest(config)
-    last_epoch = get_last_epoch()
+    last_epoch = 5# get_last_epoch()
     model.load(last_epoch)
 
     # renderer = ModelRender(config=config, dataset=test_data)
     # renderer.render_sequences(model, device, 'output/videos')
 
-    melspec, mfcc, target, base_target, _, _, _, _ = test_data.get_sequence(15)
+    emotion, mfcc, target, base_target, _, _, _, _ = test_data.get_sequence(3)
     
-    print('melspec:', melspec.shape)
+    print('emotion:', emotion.shape)
     print('mfcc:', mfcc.shape)
     print('base:', base_target.shape)
     print('target:', target.shape)
 
-    reconstructed = make_inference(model, device, melspec, mfcc, base_target)
-    reconstructed = reconstructed.cpu()
+    reconstructed = make_inference(model, device, emotion, mfcc, base_target)
+    reconstructed = reconstructed.cpu().numpy()
     print('reconstructed:', reconstructed.shape)
 
-    graph_face(reconstructed, 1, 2)
+    graph_face(reconstructed, 1, 2, 49)
     # print('mse:', mse(reconstructed, target))
     
     # npy_face = reconstructed.numpy()

@@ -56,7 +56,7 @@ def main():
     print(f'Using {device}')
 
     model = AudiGest(config)
-    last_epoch = 5# get_last_epoch()
+    last_epoch = 40# get_last_epoch()
     model.load(last_epoch)
 
     # renderer = ModelRender(config=config, dataset=test_data)
@@ -73,7 +73,7 @@ def main():
     reconstructed = reconstructed.cpu().numpy()
     print('reconstructed:', reconstructed.shape)
 
-    graph_face(reconstructed, 1, 2, 49)
+    graph_face(reconstructed, 1, 2, 30)
     # print('mse:', mse(reconstructed, target))
     
     # npy_face = reconstructed.numpy()

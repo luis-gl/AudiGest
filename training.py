@@ -3,6 +3,7 @@ import os
 import random
 import time
 import torch.nn.functional as F
+import torch.optim
 
 from config_creator import get_config
 from utils.model.losses import *
@@ -55,7 +56,7 @@ def train_step(config: dict, train_dl: data.DataLoader, model: AudiGest, loss_fn
 
     emotion_count = len(config['emotions'])
     consecutive_seqs = config['training']['consecutive_seqs']
-    n = config['training']['batch_size'] * consecutive_seqs * len(train_dl)
+    n = consecutive_seqs * len(train_dl)
     train_loss = 0.0
 
     hidden = None
@@ -77,7 +78,7 @@ def train_step(config: dict, train_dl: data.DataLoader, model: AudiGest, loss_fn
         target = target.to(device)
         base_target = base_target.to(device)
 
-        reconstructed, hidden = model(emotion_idx, mfcc, base_target, hidden)
+        reconstructed, _ = model(emotion_idx, mfcc, base_target, hidden)
         rec_loss = loss_fn_dict['rec'](reconstructed, target)
         vel_loss = loss_fn_dict['vel'](reconstructed, target)
         loss = rec_loss + vel_loss
@@ -86,11 +87,11 @@ def train_step(config: dict, train_dl: data.DataLoader, model: AudiGest, loss_fn
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
         optimizer.step()
         
-        current_loss = loss.item() * train_dl.batch_size
+        current_loss = loss.item()
 
         train_loss += current_loss
         
-        train_loop.set_description(f'Epoch {epoch}/{num_epochs}')
+        train_loop.set_description(f'Epoch {epoch}/{num_epochs}: training')
         train_loop.set_postfix(loss=current_loss)
 
     train_loss /= n
@@ -103,7 +104,7 @@ def validation_step(config: dict, val_dl: data.DataLoader, model: AudiGest, loss
     model.eval()
 
     emotion_count = len(config['emotions'])
-    n = config['training']['batch_size'] * config['training']['consecutive_seqs'] * len(val_dl)
+    n = config['training']['consecutive_seqs'] * len(val_dl)
     val_loss = 0.0
 
     hidden = None
@@ -131,11 +132,11 @@ def validation_step(config: dict, val_dl: data.DataLoader, model: AudiGest, loss
             vel_loss = loss_fn_dict['vel'](reconstructed, target)
             loss = rec_loss + vel_loss
             
-            current_loss = loss.item() * val_dl.batch_size
+            current_loss = loss.item()
 
             val_loss += current_loss
             
-            val_loop.set_description(f'Epoch {epoch}/{num_epochs}')
+            val_loop.set_description(f'Epoch {epoch}/{num_epochs}: validation')
             val_loop.set_postfix(loss=current_loss)
 
     val_loss /= n
@@ -144,14 +145,14 @@ def validation_step(config: dict, val_dl: data.DataLoader, model: AudiGest, loss
 
 
 def train_model(config: dict, train_dl: data.DataLoader, val_dl: data.DataLoader, model: AudiGest,
-                optimizer: torch.optim, scheduler: torch.optim.lr_scheduler.ExponentialLR,
+                optimizer: torch.optim.Optimizer, scheduler: torch.optim.lr_scheduler.ExponentialLR,
                 train_hist: list[float], val_hist: list[float],
                 device: torch.device, last_epoch: int, num_epochs: int) -> dict:
 
     train_loss_history = train_hist if train_hist is not None else []
     val_loss_history = val_hist if val_hist is not None else []
 
-    rec_loss = nn.L1Loss()
+    rec_loss = nn.MSELoss()
     vel_loss = VelocityLoss(config, rec_loss)
 
     loss_fn_dict = {
@@ -202,8 +203,8 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device}')
 
-    train_dl = data.DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=True)
-    val_dl = data.DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=4, drop_last=True)
+    train_dl = data.DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=5, drop_last=True)
+    val_dl = data.DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=5, drop_last=True)
 
     # a, b, c, d = next(iter(train_dl))
     # print(a.shape)

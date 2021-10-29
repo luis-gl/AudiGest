@@ -68,6 +68,7 @@ class MEADDataset(Dataset):
         emotion = torch.tensor(self.e_to_idx[e])
         emotion = emotion.repeat(len(mfcc_list))
         mfcc = torch.stack(mfcc_list)
+        print(len(lmks_list))
         target = torch.stack(lmks_list)
         base_target = base_target.repeat(len(mfcc_list), 1, 1)
 

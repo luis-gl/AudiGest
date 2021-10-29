@@ -70,6 +70,6 @@ model:
 training:
   batch_size: 16
   consecutive_seqs: 2
-  decay_rate: 0.9
-  epochs: 40
-  learning_rate: 0.0001
+  decay_rate: 1.0
+  epochs: 200
+  learning_rate: 4.0e-06

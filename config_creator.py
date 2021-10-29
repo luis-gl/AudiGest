@@ -49,7 +49,7 @@ def create_default_config():
         'emotions': ['angry', 'contempt', 'disgusted', 'fear', 'happy', 'neutral', 'sad', 'surprised'],
         'model': {
             'lstm': {
-                'hidden_dim': 16,
+                'hidden_dim': 128,
                 'num_layers': 1,
             },
             'fc': {
@@ -58,14 +58,14 @@ def create_default_config():
                 'hidden_2': 128,
                 'hidden_3': 256,
                 'hidden_4': 512,
-                'drop': 0.7
+                'drop': 0.5
             },
             'vertex_num': 468,
             'velocity_weight': 10.0
         },
         'training': {
-            'batch_size': 64,
-            'learning_rate': 1e-4,
+            'batch_size': 16,
+            'learning_rate': 4e-6,
             'epochs': 40,
             'decay_rate': 1.0,
             'consecutive_seqs': 2

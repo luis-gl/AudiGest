@@ -47,9 +47,7 @@ def get_last_epoch() -> int:
     return last_checkpoint
 
 
-def train_step(config: dict, train_dl: data.DataLoader, model: AudiGest, loss_fn_dict: dict,
-               optimizer: torch.optim.Optimizer, device: torch.device,
-               epoch: int, num_epochs: int) -> float:
+def train_step(config, train_dl, model, loss_fn_dict, optimizer, device, epoch, num_epochs):
     model.train()
 
     optimizer.zero_grad()
@@ -82,15 +80,15 @@ def train_step(config: dict, train_dl: data.DataLoader, model: AudiGest, loss_fn
         rec_loss = loss_fn_dict['rec'](reconstructed, target)
         vel_loss = loss_fn_dict['vel'](reconstructed, target)
         loss = rec_loss + vel_loss
-        
+
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
         optimizer.step()
-        
+
         current_loss = loss.item()
 
         train_loss += current_loss
-        
+
         train_loop.set_description(f'Epoch {epoch}/{num_epochs}: training')
         train_loop.set_postfix(loss=current_loss)
 
@@ -99,8 +97,7 @@ def train_step(config: dict, train_dl: data.DataLoader, model: AudiGest, loss_fn
     return train_loss
 
 
-def validation_step(config: dict, val_dl: data.DataLoader, model: AudiGest, loss_fn_dict: dict,
-                    device: torch.device, epoch: int, num_epochs: int) -> float:
+def validation_step(config, val_dl, model, loss_fn_dict, device, epoch, num_epochs):
     model.eval()
 
     emotion_count = len(config['emotions'])
@@ -144,10 +141,8 @@ def validation_step(config: dict, val_dl: data.DataLoader, model: AudiGest, loss
     return val_loss
 
 
-def train_model(config: dict, train_dl: data.DataLoader, val_dl: data.DataLoader, model: AudiGest,
-                optimizer: torch.optim.Optimizer, scheduler: torch.optim.lr_scheduler.ExponentialLR,
-                train_hist: list[float], val_hist: list[float],
-                device: torch.device, last_epoch: int, num_epochs: int) -> dict:
+def train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_hist, val_hist,
+                device, last_epoch, num_epochs):
 
     train_loss_history = train_hist if train_hist is not None else []
     val_loss_history = val_hist if val_hist is not None else []
@@ -160,24 +155,25 @@ def train_model(config: dict, train_dl: data.DataLoader, val_dl: data.DataLoader
         'vel': vel_loss
     }
 
-    model = model.to(device)
-
     if last_epoch > 0:
         print('Resuming training')
 
     for epoch in range(last_epoch + 1, num_epochs + 1):
+        print(f'epoch {epoch}/{num_epochs}:')
         s = time.time()
         train_loss = train_step(config, train_dl, model, loss_fn_dict, optimizer, device, epoch, num_epochs)
+        print('train loss:', train_loss)
         val_loss = validation_step(config, val_dl, model, loss_fn_dict, device, epoch, num_epochs)
+        print('val loss:', val_loss)
 
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
 
-        print(f'epoch {epoch}/{num_epochs}: {(time.time() - s) / 60:.4f} minutes')
-        print('train loss:', train_loss)
-        print('val loss:', val_loss)
+        epoch_time = time.time() - s
+        print(f'time: {int(epoch_time / 60)}:{int(epoch_time % 60)} minutes')
 
-        scheduler.step()
+        if scheduler is not None:
+            scheduler.step()
 
         if epoch % 5 == 0:
             model.save(epoch, optimizer, scheduler, train_loss_history, val_loss_history)
@@ -193,7 +189,7 @@ def main():
     config = get_config()
     set_seed(42, True)
 
-    train_data = MEADDataset(partition='train', config=config, use_rescaled=False, use_norm=True)
+    train_data = MEADDataset(partition='test', config=config, use_rescaled=False, use_norm=True)
     val_data = MEADDataset(partition='val', config=config, use_rescaled=False, use_norm=True)
 
     batch_size = config['training']['batch_size']
@@ -213,6 +209,7 @@ def main():
     # print(d.shape)
 
     model = AudiGest(config)
+    model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, decay_rate)
 
@@ -225,9 +222,10 @@ def main():
     if scheduler_st is not None:
         scheduler.load_state_dict(scheduler_st)
 
+    scheduler = None
     model_dict = train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_hist, val_hist,
                              device, last_epoch, epochs)
-    plot_loss(model_dict, 'AudiGest2', save=True, test=True)
+    plot_loss(model_dict, 'AudiGest2_short', save=True, test=True)
 
 
 if __name__ == '__main__':

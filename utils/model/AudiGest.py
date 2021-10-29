@@ -48,14 +48,12 @@ class AudiGest(nn.Module):
         reconstructed = base_target + offsets
         return reconstructed, hidden
 
-    def save(self, epoch: int, optimizer: torch.optim.Optimizer,
-            scheduler: torch.optim.lr_scheduler.ExponentialLR,
-            train_loss_hist: list[float], val_loss_hist: list[float]):
+    def save(self, epoch, optimizer, scheduler, train_loss_hist, val_loss_hist):
 
         save_dict = {
             'model': self.state_dict(),
             'optim': optimizer.state_dict(),
-            'scheduler': scheduler.state_dict(),
+            'scheduler': scheduler.state_dict() if scheduler is not None else None,
             'train_loss_hist': train_loss_hist,
             'val_loss_hist': val_loss_hist
         }

@@ -3,6 +3,7 @@ import matplotlib.pyplot as  plt
 import torch
 import torch.nn.functional as F
 
+from landmark_normalization import convert_to_txt
 from utils.model.AudiGest import AudiGest
 from utils.model.MEADdataset import MEADDataset
 
@@ -56,7 +57,7 @@ def main():
     print(f'Using {device}')
 
     model = AudiGest(config)
-    last_epoch = 40# get_last_epoch()
+    last_epoch = get_last_epoch()
     model.load(last_epoch)
 
     # renderer = ModelRender(config=config, dataset=test_data)
@@ -73,7 +74,8 @@ def main():
     reconstructed = reconstructed.cpu().numpy()
     print('reconstructed:', reconstructed.shape)
 
-    graph_face(reconstructed, 1, 2, 30)
+    convert_to_txt(reconstructed, '001_inf.txt')
+    # graph_face(reconstructed, 1, 2, 30)
     # print('mse:', mse(reconstructed, target))
     
     # npy_face = reconstructed.numpy()

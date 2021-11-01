@@ -35,7 +35,7 @@ class AudioFeatureExtractor:
 
     def get_melspec_and_mfccs(self,
                               audio_path: str,
-                              use_delta: bool = True) -> tuple[np.ndarray, np.ndarray]:
+                              use_delta: bool = True) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         mono_signal = self._get_signal_mono(audio_path)
         signal_adjusted = self._check_for_padding(mono_signal)
         sliced_melspec = librosa.feature.melspectrogram(signal_adjusted, sr=self.sample_rate,
@@ -52,22 +52,27 @@ class AudioFeatureExtractor:
         mean, std = np.mean(mfccs, axis=0), np.std(mfccs, axis=0)
         mfccs = (mfccs - mean) / std
 
-        return sliced_melspec, mfccs
+        return sliced_melspec, mfccs, melspec
 
-    def process_framed_mfcc(self,
-                            mfccs: np.ndarray,
-                            use_delta: bool = True) -> np.ndarray:
+    def process_framed_feature(self,
+                               features: np.ndarray,
+                               f_type: str,) -> np.ndarray:
         frame_size = self.fps // 2
-        element_size = self.n_mfcc * (2 if use_delta else 1)
+        element_size = features.shape[0]
         pad_shape = (element_size, frame_size)
-        pad_left = np.zeros(pad_shape)
-        pad_right = np.zeros(pad_shape)
-        mfccs = np.column_stack((pad_left, mfccs, pad_right))
+        if f_type == 'melspec':
+            fill_with = features.min()
+            pad_left = np.full(pad_shape, fill_value=fill_with)
+            pad_right = np.full(pad_shape, fill_value=fill_with)
+        else:
+            pad_left = np.zeros(pad_shape)
+            pad_right = np.zeros(pad_shape)
+        features = np.column_stack((pad_left, features, pad_right))
 
-        seq_len = mfccs.shape[1]
+        seq_len = features.shape[1]
         input_list = []
         for i in range(frame_size, seq_len - frame_size):
-            input_list.append(mfccs[:, i - frame_size:i + frame_size])
+            input_list.append(features[:, i - frame_size:i + frame_size])
         input_list = np.array(input_list)
 
         return input_list

@@ -2,15 +2,15 @@ import numpy as np
 import os
 import random
 import time
-import torch.nn.functional as F
 import torch.optim
+import torch.nn.functional as F
 
 from config_creator import get_config
 from utils.model.losses import *
 from torch.utils import data
 from tqdm import tqdm
 from utils.model.MEADdataset import MEADDataset
-from utils.model.AudiGest import AudiGest
+from utils.model.Karras import KarrasModel
 from utils.plotter import plot_loss
 
 
@@ -34,9 +34,9 @@ def get_last_epoch() -> int:
         print(f'No checkpoint detected.')
         return 0
 
-    checkpoints = [int(file.split('.')[0].replace('AG_', ''))
-                    for file in os.listdir(checkpoints_dir)
-                    if os.path.isfile(os.path.join(checkpoints_dir, file))]
+    checkpoints = [int(file.split('.')[0].replace('AGK_', ''))
+                   for file in os.listdir(checkpoints_dir)
+                   if os.path.isfile(os.path.join(checkpoints_dir, file))]
 
     if len(checkpoints) < 1:
         print(f'No checkpoint detected.')
@@ -53,36 +53,37 @@ def train_step(config, train_dl, model, loss_fn_dict, optimizer, device, epoch, 
     optimizer.zero_grad()
 
     emotion_count = len(config['emotions'])
+    subject_count = 4
     consecutive_seqs = config['training']['consecutive_seqs']
     n = consecutive_seqs * len(train_dl)
     train_loss = 0.0
 
-    hidden = None
-
     train_loop = tqdm(enumerate(train_dl), total=len(train_dl), leave=False)
-    for _, (emotion_idx, mfcc, target, base_target) in train_loop:
-        # melspec = melspec.reshape(-1, *melspec.shape[2:])
-        # melspec = melspec.unsqueeze(1)
+    for _, (subject_idx, emotion_idx, feature, target, base_target) in train_loop:
+        subject_idx = subject_idx.reshape(-1)
+        subject_idx = F.one_hot(subject_idx, subject_count)
+
         emotion_idx = emotion_idx.reshape(-1)
         emotion_idx = F.one_hot(emotion_idx, emotion_count)
-        mfcc = mfcc.reshape(-1, *mfcc.shape[2:])
-        mfcc = mfcc.permute(0, 2, 1)
+
+        feature = feature.reshape(-1, *feature.shape[2:])
+        feature = feature.unsqueeze(1)
+
         target = target.reshape(-1, *target.shape[2:])
         base_target = base_target.reshape(-1, *base_target.shape[2:])
 
-        # melspec = melspec.to(device)
+        subject_idx = subject_idx.to(device)
         emotion_idx = emotion_idx.to(device)
-        mfcc = mfcc.to(device)
+        feature = feature.to(device)
         target = target.to(device)
         base_target = base_target.to(device)
 
-        reconstructed, _ = model(emotion_idx, mfcc, base_target, hidden)
+        reconstructed = model(feature, emotion_idx, subject_idx, base_target)
         rec_loss = loss_fn_dict['rec'](reconstructed, target)
         vel_loss = loss_fn_dict['vel'](reconstructed, target)
         loss = rec_loss + vel_loss
 
         loss.backward()
-        nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
         optimizer.step()
 
         current_loss = loss.item()
@@ -101,38 +102,40 @@ def validation_step(config, val_dl, model, loss_fn_dict, device, epoch, num_epoc
     model.eval()
 
     emotion_count = len(config['emotions'])
+    subject_count = 4
     n = config['training']['consecutive_seqs'] * len(val_dl)
     val_loss = 0.0
 
-    hidden = None
-
     with torch.no_grad():
         val_loop = tqdm(enumerate(val_dl), total=len(val_dl), leave=False)
-        for _, (emotion_idx, mfcc, target, base_target) in val_loop:
-            # melspec = melspec.reshape(-1, *melspec.shape[2:])
-            # melspec = melspec.unsqueeze(1)
+        for _, (subject_idx, emotion_idx, feature, target, base_target) in val_loop:
+            subject_idx = subject_idx.reshape(-1)
+            subject_idx = F.one_hot(subject_idx, subject_count)
+
             emotion_idx = emotion_idx.reshape(-1)
             emotion_idx = F.one_hot(emotion_idx, emotion_count)
-            mfcc = mfcc.reshape(-1, *mfcc.shape[2:])
-            mfcc = mfcc.permute(0, 2, 1)
+
+            feature = feature.reshape(-1, *feature.shape[2:])
+            feature = feature.unsqueeze(1)
+
             target = target.reshape(-1, *target.shape[2:])
             base_target = base_target.reshape(-1, *base_target.shape[2:])
 
-            # melspec = melspec.to(device)
+            subject_idx = subject_idx.to(device)
             emotion_idx = emotion_idx.to(device)
-            mfcc = mfcc.to(device)
+            feature = feature.to(device)
             target = target.to(device)
             base_target = base_target.to(device)
 
-            reconstructed, hidden = model(emotion_idx, mfcc, base_target, hidden)
+            reconstructed = model(feature, emotion_idx, subject_idx, base_target)
             rec_loss = loss_fn_dict['rec'](reconstructed, target)
             vel_loss = loss_fn_dict['vel'](reconstructed, target)
             loss = rec_loss + vel_loss
-            
+
             current_loss = loss.item()
 
             val_loss += current_loss
-            
+
             val_loop.set_description(f'Epoch {epoch}/{num_epochs}: validation')
             val_loop.set_postfix(loss=current_loss)
 
@@ -143,11 +146,10 @@ def validation_step(config, val_dl, model, loss_fn_dict, device, epoch, num_epoc
 
 def train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_hist, val_hist,
                 device, last_epoch, num_epochs):
-
     train_loss_history = train_hist if train_hist is not None else []
     val_loss_history = val_hist if val_hist is not None else []
 
-    rec_loss = nn.MSELoss()
+    rec_loss = nn.L1Loss()
     vel_loss = VelocityLoss(config, rec_loss)
 
     loss_fn_dict = {
@@ -170,7 +172,7 @@ def train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_his
         val_loss_history.append(val_loss)
 
         epoch_time = time.time() - s
-        print(f'time: {int(epoch_time / 60)}:{int(epoch_time % 60)} minutes')
+        print(f'time: {int(epoch_time / 60):02d}:{int(epoch_time % 60):02d} minutes')
 
         if scheduler is not None:
             scheduler.step()
@@ -189,8 +191,8 @@ def main():
     config = get_config()
     set_seed(42, True)
 
-    train_data = MEADDataset(partition='test', config=config, use_rescaled=False, use_norm=True)
-    val_data = MEADDataset(partition='val', config=config, use_rescaled=False, use_norm=True)
+    train_data = MEADDataset(partition='test', config=config, feature='mfcc', use_rescaled=False, use_norm=True)
+    val_data = MEADDataset(partition='val', config=config, feature='mfcc', use_rescaled=False, use_norm=True)
 
     batch_size = config['training']['batch_size']
     lr = config['training']['learning_rate']
@@ -202,13 +204,14 @@ def main():
     train_dl = data.DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=5, drop_last=True)
     val_dl = data.DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=5, drop_last=True)
 
-    # a, b, c, d = next(iter(train_dl))
-    # print(a.shape)
-    # print(b.shape)
-    # print(c.shape)
-    # print(d.shape)
+    # subject_idx, emotion_idx, feature, target, base_target = next(iter(val_dl))
+    # print(subject_idx.shape)
+    # print(emotion_idx.shape)
+    # print(feature.shape)
+    # print(target.shape)
+    # print(base_target.shape)
 
-    model = AudiGest(config)
+    model = KarrasModel(config, input_type='mfcc')
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, decay_rate)
@@ -222,10 +225,9 @@ def main():
     if scheduler_st is not None:
         scheduler.load_state_dict(scheduler_st)
 
-    scheduler = None
     model_dict = train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_hist, val_hist,
                              device, last_epoch, epochs)
-    plot_loss(model_dict, 'AudiGest2_short', save=True, test=True)
+    plot_loss(model_dict, 'AudiGest3', save=True, test=True)
 
 
 if __name__ == '__main__':

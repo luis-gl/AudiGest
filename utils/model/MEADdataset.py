@@ -7,21 +7,21 @@ from utils.files.save import load_numpy, load_torch
 
 
 class MEADDataset(Dataset):
-    def __init__(self, partition: str, config: dict, use_rescaled: bool = False, use_norm: bool = False):
+    def __init__(self, partition: str, config: dict, feature: str = 'melspec', use_rescaled: bool = False, use_norm: bool = False):
 
         self.partition = partition
         self.consecutive_seqs = config['training']['consecutive_seqs']
         self.data_root = config['files'][partition]['root']
-        self.audio_dir = 'clean_audio' if config['audio']['use_clean'] else 'audio'
         self.landmarks_dir = 'landmarks'
-        self.melspec_dir = 'melspec'
-        self.mfcc_dir = 'mfcc'
+        self.feature_dir = feature
         self.csv_file = config['files'][partition]['csv']
         self.csv_data = pd.read_csv(self.csv_file)
         self.mini_file = config['files'][partition]['mini']
         self.csv_mini = pd.read_csv(self.mini_file)
+        self.subjects = config['files'][partition]['subjects']
+        self.sbj_to_idx = {self.subjects[idx]: idx for idx in range(len(self.subjects))}
         self.emotions = config['emotions']
-        self.e_to_idx = {self.emotions[idx]: idx for idx, _ in enumerate(self.emotions)}
+        self.e_to_idx = {self.emotions[idx]: idx for idx in range(len(self.emotions))}
         self.sample_rate = config['audio']['sample_rate']
         self.use_rescaled = use_rescaled
         self.use_norm = use_norm
@@ -29,61 +29,57 @@ class MEADDataset(Dataset):
     def __len__(self):
         return len(self.csv_data)
 
-    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         if index + self.consecutive_seqs - 1 >= len(self.csv_data):
             index = len(self.csv_data) - self.consecutive_seqs
-        
-        # melspec_path, mfcc_paths, lmks_paths, base_lmks_path = self._get_element_paths(index)
-        emo, mfcc_paths, lmks_paths, base_lmks_path = self._get_element_paths(index)
-        # melspec = load_torch(melspec_path)
-        # melspec = melspec.repeat(len(mfcc_paths), 1, 1)
-        seq_mfcc = torch.stack(self._get_element_data(mfcc_paths, 'numpy'))
+
+        sbj, emo, feature_paths, lmks_paths, base_lmks_path = self._get_element_paths(index)
+        seq_feature = torch.stack(self._get_element_data(feature_paths, 'numpy'))
         seq_targets = torch.stack(self._get_element_data(lmks_paths, 'numpy'))
         base_target = load_numpy(base_lmks_path)
         base_target = torch.from_numpy(base_target).type(torch.float32)
-        base_target = base_target.repeat(len(mfcc_paths), 1, 1)
-        emotion_idx = [self.e_to_idx[emo]] * len(mfcc_paths)
+        base_target = base_target.repeat(self.consecutive_seqs, 1, 1)
+        sbj_idx = [self.sbj_to_idx[sbj]] * self.consecutive_seqs
+        sbj_idx = torch.Tensor(sbj_idx).type(torch.int64)
+        emotion_idx = [self.e_to_idx[emo]] * self.consecutive_seqs
         emotion_idx = torch.Tensor(emotion_idx).type(torch.int64)
 
-        return emotion_idx, seq_mfcc, seq_targets, base_target
+        return sbj_idx, emotion_idx, seq_feature, seq_targets, base_target
 
     def get_sequence(self, index: int):
-        melspec_file, mfcc_container, lmks_container, sbj, e, lv, fname = self._get_inference_item_path(index)
-        # melspec = load_torch(melspec_file)
+        feature_container, lmks_container, sbj, e, lv, fname = self._get_inference_item_path(index)
 
-        short_dir_mfcc = mfcc_container.replace('processed_data/', '')
+        short_dir_feature = feature_container.replace('processed_data/', '')
         short_dir_lmks = lmks_container.replace('processed_data/', '')
 
-        mfcc_paths = [os.path.join(short_dir_mfcc, file) for file in os.listdir(mfcc_container)]
+        feature_paths = [os.path.join(short_dir_feature, file) for file in os.listdir(feature_container)]
         lmks_paths = [os.path.join(short_dir_lmks, file) for file in os.listdir(lmks_container)]
 
-        mfcc_list = [torch.from_numpy(load_numpy(file)).type(torch.float32) for file in mfcc_paths]
+        feature_list = [torch.from_numpy(load_numpy(file)).type(torch.float32) for file in feature_paths]
         lmks_list = [torch.from_numpy(load_numpy(file)).type(torch.float32) for file in lmks_paths]
 
         suffix = self._get_file_suffix('lmks')
         base_target = load_numpy(os.path.join(self.partition, sbj, f'{sbj}{suffix}.npy'))
         base_target = torch.from_numpy(base_target).type(torch.float32)
 
-        # melspec = melspec.repeat(len(mfcc_list), 1, 1)
-        emotion = torch.tensor(self.e_to_idx[e])
-        emotion = emotion.repeat(len(mfcc_list))
-        mfcc = torch.stack(mfcc_list)
-        print(len(lmks_list))
+        sbj_idx = [self.sbj_to_idx[sbj]] * len(feature_list)
+        sbj_idx = torch.Tensor(sbj_idx).type(torch.int64)
+        emotion_idx = [self.e_to_idx[e]] * len(feature_list)
+        emotion_idx = torch.Tensor(emotion_idx).type(torch.int64)
+        feature = torch.stack(feature_list)
         target = torch.stack(lmks_list)
-        base_target = base_target.repeat(len(mfcc_list), 1, 1)
+        base_target = base_target.repeat(len(feature_list), 1, 1)
 
-        return emotion, mfcc, target, base_target, sbj, e, lv, fname
+        return sbj_idx, emotion_idx, feature, target, base_target, sbj, e, lv, fname
 
 
-    def _get_inference_item_path(self, index: int) -> tuple[str, str, str]:
+    def _get_inference_item_path(self, index: int) -> tuple[str, str, str, str, str, str]:
         sbj, e, lv, audio, _ = self.csv_mini.iloc[index]
         fname = audio.split('.')[0]
         container_dir = os.path.join(self.data_root, sbj, e, f'level_{lv}')
-        melspec_file = os.path.join(container_dir, self.melspec_dir, f'{fname}.pt')
-        melspec_file = melspec_file.replace('processed_data/', '')
         lmks_container = os.path.join(container_dir, self.landmarks_dir, fname)
-        mfcc_container = os.path.join(container_dir, self.mfcc_dir, fname)
-        return melspec_file, mfcc_container, lmks_container, sbj, e, f'level_{lv}', fname
+        feature_container = os.path.join(container_dir, self.feature_dir, fname)
+        return feature_container, lmks_container, sbj, e, f'level_{lv}', fname
     
     def _get_element_data(self, element_paths, load_type='torch'):
         data_list = []
@@ -96,41 +92,34 @@ class MEADDataset(Dataset):
             data_list.append(data)
         return data_list
 
-    def _get_element_paths(self, index: int) -> tuple[str, str, str, str]:
-        sbj, e, lv, audio, melspec, lmks, mfcc = self.csv_data.iloc[index]
+    def _get_element_paths(self, index: int) -> tuple[str, str, str, str, str]:
+        sbj, e, lv, audio, _, lmks, _ = self.csv_data.iloc[index]
 
         for i in range(1, self.consecutive_seqs):
-            _, _, _, audio2, _, _, _ = self.csv_data.iloc[index + i]
+            audio2 = self.csv_data['audio'].values[index + i]
             if audio != audio2:
                 index += i - self.consecutive_seqs
                 break
 
         lmks_list = []
-        mfcc_list = []
-        sbj, e, lv, audio, melspec, lmks, mfcc = self.csv_data.iloc[index]
+        sbj, e, lv, audio, _, lmks, _ = self.csv_data.iloc[index]
         lmks_list.append(lmks)
-        mfcc_list.append(mfcc)
 
         for i in range(1, self.consecutive_seqs):
-            _, _, _, _, _, current_lmks, current_mfcc = self.csv_data.iloc[index + i]
+            current_lmks = self.csv_data['landmarks'].values[index + i]
             lmks_list.append(current_lmks)
-            mfcc_list.append(current_mfcc)
 
         audio = audio.split('.')[0]
         container_dir = os.path.join(self.data_root, sbj, e, f'level_{lv}')
-
-        # melspec_file = os.path.join(container_dir, self.melspec_dir, melspec)
-        # melspec_file = melspec_file.replace('processed_data/', '')
 
         suffix = self._get_file_suffix('lmks')
         base_lmks_file = os.path.join(self.data_root, sbj, f'{sbj}{suffix}.npy')
         base_lmks_file = base_lmks_file.replace('processed_data/', '')
 
         target_lmks_files = self._get_sequence_paths('lmks', lmks_list, container_dir, audio)
-        mfcc_files = self._get_sequence_paths('mfcc', mfcc_list, container_dir, audio)
+        feature_files = self._get_sequence_paths('feature', lmks_list, container_dir, audio)
 
-        # return melspec_file, mfcc_files, target_lmks_files, base_lmks_file
-        return e, mfcc_files, target_lmks_files, base_lmks_file
+        return sbj, e, feature_files, target_lmks_files, base_lmks_file
 
     def _get_file_suffix(self, file_type: str = 'lmks'):
         if file_type == 'lmks':
@@ -143,11 +132,11 @@ class MEADDataset(Dataset):
         else:
             return f'_{self.sample_rate}'
     
-    def _get_sequence_paths(self, element_type, elements, container_dir, audio):
+    def _get_sequence_paths(self, element_type: str, elements: list[str], container_dir: str, audio: str):
         if element_type == 'lmks':
             element_dir = self.landmarks_dir
         else:
-            element_dir = self.mfcc_dir
+            element_dir = self.feature_dir
         suffix = self._get_file_suffix(element_type)
 
         file_paths = []

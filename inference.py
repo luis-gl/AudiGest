@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 
 from landmark_normalization import convert_to_txt
-from utils.model.AudiGest import AudiGest
+from utils.model.Karras import KarrasModel
 from utils.model.MEADdataset import MEADDataset
 
 from config_creator import get_config
@@ -26,51 +26,49 @@ def graph_face(faces: np.ndarray, rows: int, cols: int, start_idx: int):
     plt.show()
 
 
-def make_inference(model: AudiGest, device: torch.device, melspec: torch.Tensor, mfcc: torch.Tensor,
-                    base_target: torch.Tensor) -> torch.tensor:
+def make_inference(model: KarrasModel, device: torch.device, feature: torch.Tensor,
+                   emotion: torch.Tensor, subject: torch.Tensor,
+                   base_target: torch.Tensor) -> torch.tensor:
     model = model.to(device)
     model.eval()
-    hidden = None
 
     with torch.no_grad():
-        # melspec = melspec.unsqueeze(1)
-        # melspec = melspec.to(device)
-        melspec = F.one_hot(melspec, 8)
-        melspec = melspec.to(device)
-
-        mfcc = mfcc.permute(0, 2, 1)
-        mfcc = mfcc.to(device)
-
+        subject = F.one_hot(subject, 4)
+        subject = subject.to(device)
+        emotion = F.one_hot(emotion, 8)
+        emotion = emotion.to(device)
+        feature = feature.unsqueeze(1)
+        feature = feature.to(device)
         base_target = base_target.to(device)
 
-        reconstructed, _ = model(melspec, mfcc, base_target, hidden)
+        reconstructed = model(feature, emotion, subject, base_target)
         return reconstructed
 
 
 def main():
     config = get_config()
 
-    # train_data = MEADDataset(train=True, config=config)
-    test_data = MEADDataset(partition='test', config=config)
+    test_data = MEADDataset(partition='train', config=config, feature='mfcc', use_rescaled=False, use_norm=True)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device}')
 
-    model = AudiGest(config)
+    model = KarrasModel(config, input_type='mfcc')
     last_epoch = get_last_epoch()
     model.load(last_epoch)
 
     # renderer = ModelRender(config=config, dataset=test_data)
     # renderer.render_sequences(model, device, 'output/videos')
 
-    emotion, mfcc, target, base_target, _, _, _, _ = test_data.get_sequence(3)
-    
+    subject, emotion, feature, target, base_target, _, _, _, _ = test_data.get_sequence(1)
+
+    print('subject:', subject.shape)
     print('emotion:', emotion.shape)
-    print('mfcc:', mfcc.shape)
+    print('mfcc:', feature.shape)
     print('base:', base_target.shape)
     print('target:', target.shape)
 
-    reconstructed = make_inference(model, device, emotion, mfcc, base_target)
+    reconstructed = make_inference(model, device, feature, emotion, subject, base_target)
     reconstructed = reconstructed.cpu().numpy()
     print('reconstructed:', reconstructed.shape)
 

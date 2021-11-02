@@ -21,7 +21,7 @@ files:
   raw_data_root: MEAD
   subject_paths: processed_data/sbj_data_paths.pkl
   test:
-    csv: processed_data/test_dataset.csv
+    csv: processed_data/test_subjects.csv
     mini: processed_data/test_mini.csv
     root: processed_data/test
     subjects:
@@ -30,7 +30,7 @@ files:
     - W009
     - W019
   train:
-    csv: processed_data/train_dataset.csv
+    csv: processed_data/train_subjects.csv
     mini: processed_data/train_mini.csv
     root: processed_data/train
     subjects:
@@ -46,7 +46,7 @@ files:
     - W014
     - W016
   val:
-    csv: processed_data/val_dataset.csv
+    csv: processed_data/val_subjects.csv
     mini: processed_data/val_mini.csv
     root: processed_data/val
     subjects:
@@ -65,11 +65,12 @@ model:
   lstm:
     hidden_dim: 128
     num_layers: 1
+  use_condition: true
   velocity_weight: 10.0
   vertex_num: 468
 training:
-  batch_size: 16
+  batch_size: 1
   consecutive_seqs: 2
-  decay_rate: 1.0
-  epochs: 200
-  learning_rate: 4.0e-06
+  decay_rate: 0.95
+  epochs: 300
+  learning_rate: 0.00001

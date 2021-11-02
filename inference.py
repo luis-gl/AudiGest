@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 
 from landmark_normalization import convert_to_txt
-from utils.model.Karras import KarrasModel
+from utils.model.SequenceRegressor import SequenceRegressor
 from utils.model.MEADdataset import MEADDataset
 
 from config_creator import get_config
@@ -26,54 +26,58 @@ def graph_face(faces: np.ndarray, rows: int, cols: int, start_idx: int):
     plt.show()
 
 
-def make_inference(model: KarrasModel, device: torch.device, feature: torch.Tensor,
-                   emotion: torch.Tensor, subject: torch.Tensor,
-                   base_target: torch.Tensor) -> torch.tensor:
+def make_inference(model: SequenceRegressor, device: torch.device, dataset: MEADDataset) -> torch.tensor:
     model = model.to(device)
     model.eval()
 
     with torch.no_grad():
-        subject = F.one_hot(subject, 4)
-        subject = subject.to(device)
-        emotion = F.one_hot(emotion, 8)
-        emotion = emotion.to(device)
-        feature = feature.unsqueeze(1)
-        feature = feature.to(device)
-        base_target = base_target.to(device)
+        _, emotion, feature, _, template = dataset[0]
 
-        reconstructed = model(feature, emotion, subject, base_target)
+        # print('emotion:', emotion.shape)
+        # print('feature:', feature.shape)
+        # print('template:', template.shape)
+        # print('-' * 10)
+
+        subject = F.one_hot(torch.Tensor([1]).type(torch.int64), 4)
+
+        emotion = F.one_hot(emotion, 8)
+
+        feature = feature.unsqueeze(dim=0)
+        feature = feature.permute(0, 2, 1)
+
+        template = template.unsqueeze(dim=0)
+
+        subject = subject.to(device)
+        emotion = emotion.to(device)
+        feature = feature.to(device)
+        template = template.to(device)
+
+        reconstructed = model(feature, emotion, subject, template)
         return reconstructed
 
 
 def main():
     config = get_config()
 
-    test_data = MEADDataset(partition='train', config=config, feature='mfcc', use_rescaled=False, use_norm=True)
+    test_data = MEADDataset(partition='train', config=config, feature='melspec', use_rescaled=False, use_norm=True)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device}')
 
-    model = KarrasModel(config, input_type='mfcc')
+    model = SequenceRegressor(config, device, feature_type='melspec')
     last_epoch = get_last_epoch()
     model.load(last_epoch)
 
     # renderer = ModelRender(config=config, dataset=test_data)
     # renderer.render_sequences(model, device, 'output/videos')
 
-    subject, emotion, feature, target, base_target, _, _, _, _ = test_data.get_sequence(1)
-
-    print('subject:', subject.shape)
-    print('emotion:', emotion.shape)
-    print('mfcc:', feature.shape)
-    print('base:', base_target.shape)
-    print('target:', target.shape)
-
-    reconstructed = make_inference(model, device, feature, emotion, subject, base_target)
+    reconstructed = make_inference(model, device, test_data)
+    reconstructed = reconstructed.squeeze(dim=0)
     reconstructed = reconstructed.cpu().numpy()
     print('reconstructed:', reconstructed.shape)
 
     convert_to_txt(reconstructed, '001_inf.txt')
-    # graph_face(reconstructed, 1, 2, 30)
+    # graph_face(reconstructed, 1, 2, 0)
     # print('mse:', mse(reconstructed, target))
     
     # npy_face = reconstructed.numpy()

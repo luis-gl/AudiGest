@@ -183,8 +183,8 @@ def main():
     config = get_config()
     set_seed(42, True)
 
-    train_data = MEADDataset(partition='test', config=config, feature='melspec', use_rescaled=False, use_norm=True)
-    val_data = MEADDataset(partition='val', config=config, feature='melspec', use_rescaled=False, use_norm=True)
+    train_data = MEADDataset(partition='test', config=config, feature='mfcc', use_rescaled=False, use_norm=True)
+    val_data = MEADDataset(partition='val', config=config, feature='mfcc', use_rescaled=False, use_norm=True)
 
     batch_size = config['training']['batch_size']
     lr = config['training']['learning_rate']
@@ -203,7 +203,7 @@ def main():
     # print('target:', target.shape)
     # print('template:', base_target.shape)
 
-    model = SequenceRegressor(config, device, feature_type='melspec')
+    model = SequenceRegressor(config, device, feature_type='mfcc')
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, decay_rate)

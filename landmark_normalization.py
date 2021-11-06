@@ -41,6 +41,13 @@ def normalize_sequence(seq: np.ndarray, rs_seq: np.ndarray):
         rs_seq_lmks[idx, :] -= rs_centers[idx]
     return seq_lmks, rs_seq_lmks
 
+def center_sequence(seq: np.ndarray):
+    seq_lmks = seq.copy()
+    centers = seq_lmks.mean(axis=1)
+    for idx in range(seq_lmks.shape[0]):
+        seq_lmks[idx, :] -= centers[idx]
+    return seq_lmks
+
 
 def main():
     for phase in ['train', 'val', 'test']:

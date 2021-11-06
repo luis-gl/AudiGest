@@ -17,7 +17,7 @@ class FaceDetector:
                  confidence: float = 0.5,
                  apply_rescaling: bool = False,
                  display_landmarks: bool = False,
-                 debug_color: tuple[int, int, int] = (255, 0, 0),
+                 debug_color: 'tuple[int, int, int]' = (255, 0, 0),
                  debug_thickness: int = 1,
                  debug_circle_radius: int = 1):
         """

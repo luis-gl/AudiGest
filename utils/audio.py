@@ -35,7 +35,7 @@ class AudioFeatureExtractor:
 
     def get_melspec_and_mfccs(self,
                               audio_path: str,
-                              use_delta: bool = True) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+                              use_delta: bool = True) -> 'tuple[np.ndarray, np.ndarray, np.ndarray]':
         mono_signal = self._get_signal_mono(audio_path)
         signal_adjusted = self._check_for_padding(mono_signal)
         sliced_melspec = librosa.feature.melspectrogram(signal_adjusted, sr=self.sample_rate,

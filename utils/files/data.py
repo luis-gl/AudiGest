@@ -3,7 +3,7 @@ from utils.files.save import save_pickle, load_pickle
 
 
 def create_subject_dict(config: dict, project_root: str = None):
-    phases = ['train', 'val', 'test']
+    phases = ['train', 'val']
     data_root = 'MEAD'
     emotions = config['emotions']
     files_dict = config['files']
@@ -79,7 +79,7 @@ def print_subject_dict(data_dict: dict = None):
     if not data_dict or data_dict is None:
         raise ValueError('Dictionary is None or Empty')
 
-    phases = ['train', 'val', 'test']
+    phases = ['train', 'val']
     for phase in phases:
         phase_dict = data_dict[phase]
         print(f'{phase}:')

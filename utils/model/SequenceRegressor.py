@@ -21,8 +21,8 @@ class SequenceRegressor(nn.Module):
             self.input_dim = 128
         else:
             self.input_dim = config['audio']['n_mfcc'] * 2
-        self.hidden_dim = config['model']['lstm']['hidden_dim']
-        self.layers = config['model']['lstm']['num_layers']
+        self.hidden_dim = config['model']['hidden_dim']
+        self.layers = config['model']['num_layers']
 
         self.seq_modeler = nn.LSTM(input_size=self.input_dim + self.condition_num,
                                    hidden_size=self.hidden_dim,

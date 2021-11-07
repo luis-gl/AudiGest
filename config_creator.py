@@ -44,7 +44,9 @@ def create_default_config():
             'hidden_dim': 128,
             'num_layers': 1,
             'vertex_num': 468,
-            'velocity_weight': 10.0
+            'velocity_weight': 10.0,
+            'feature': 'mfcc',
+            'use_condition': True
         },
         'training': {
             'batch_size': 1,

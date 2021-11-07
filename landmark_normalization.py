@@ -50,21 +50,16 @@ def center_sequence(seq: np.ndarray):
 
 
 def main():
-    for phase in ['train', 'val', 'test']:
-        phase_data = pd.read_csv(f'processed_data/{phase}_subjects.csv')
-        loop = tqdm(range(len(phase_data)))
-        for i in loop:
-            sbj, e, lv, _, lmks = phase_data.iloc[i]
-            lmks = lmks.split('.')[0]
-            lmks_path = os.path.join(phase, sbj, e, f'level_{lv}', 'landmarks')
-            # transform_landmark_files(phase, lmks_path, lmks)
-            lmks_file = os.path.join(lmks_path, f'{lmks}.npy')
-            scaled_lmks_file = os.path.join(lmks_path, f'{lmks}rs.npy')
+    for phase in ['train', 'val']:
+        phase_data = pd.read_csv(f'processed_data/{phase}_dataset.csv')
+        subjects = phase_data['subject'].unique()
+        loop = tqdm(subjects, total=len(subjects))
+        for sbj in loop:
+            lmks_path = os.path.join(phase, sbj)
+            lmks_file = os.path.join(lmks_path, f'{sbj}.npy')
             seq_lmks = load_numpy(lmks_file)
-            rs_seq_lmks = load_numpy(scaled_lmks_file)
-            seq_lmks, rs_seq_lmks = normalize_sequence(seq_lmks, rs_seq_lmks)
-            save_numpy(seq_lmks, file_name=f'{lmks}n.npy', dir_path=lmks_path)
-            save_numpy(rs_seq_lmks, file_name=f'{lmks}rsn.npy', dir_path=lmks_path)
+            seq_lmks = center_sequence(seq_lmks)
+            save_numpy(seq_lmks, file_name=f'{sbj}c.npy', dir_path=lmks_path)
 
 
 if __name__ == '__main__':

@@ -6,18 +6,21 @@ from utils.files.save import load_torch, save_torch
 
 
 class SequenceRegressor(nn.Module):
-    def __init__(self, config: dict, device: torch.device, feature_type: str = 'melspec'):
+    def __init__(self, config: dict, device: torch.device):
         super(SequenceRegressor, self).__init__()
 
         self.config = config
         self.device = device
 
+        self.cond_emotion_num = len(config['emotions'])
+        self.cond_sbj_num = len(config['files']['train']['subjects'])
+
         if config['model']['use_condition']:
-            self.condition_num = 12
+            self.condition_num = self.cond_emotion_num #+ self.cond_sbj_num
         else:
             self.condition_num = 0
 
-        if feature_type == 'melspec':
+        if config['model']['feature'] == 'melspec':
             self.input_dim = 128
         else:
             self.input_dim = config['audio']['n_mfcc'] * 2
@@ -40,15 +43,17 @@ class SequenceRegressor(nn.Module):
         c_0 = torch.zeros(self.layers, feature.shape[0], self.hidden_dim).to(self.device)
 
         if self.condition_num > 0:
-            subject = torch.tile(subject, (1, feature.shape[1], 1))
+            #subject = torch.tile(subject, (1, feature.shape[1], 1))
             emotion = torch.tile(emotion, (1, feature.shape[1], 1))
-            feature = torch.cat((subject, emotion, feature), dim=-1)
+            #feature = torch.cat((subject, emotion, feature), dim=-1)
+            feature = torch.cat((emotion, feature), dim=-1)
 
         seq_features, _ = self.seq_modeler(feature, (h_0, c_0))
         # -> [B, L, hidden_dim], ([layers, B, hidden], [layers, B, hidden])
 
         if self.condition_num > 0:
-            seq_features = torch.cat((subject, emotion, seq_features), dim=-1)
+            #seq_features = torch.cat((subject, emotion, seq_features), dim=-1)
+            seq_features = torch.cat((emotion, seq_features), dim=-1)
 
         offsets = self.offsets_layer(seq_features)
         offsets = offsets.reshape(-1, offsets.shape[1], self.config['model']['vertex_num'], 3)

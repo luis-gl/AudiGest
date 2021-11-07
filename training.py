@@ -47,15 +47,14 @@ def get_last_epoch() -> int:
     return last_checkpoint
 
 
-def train_step(config, train_dl, model, loss_fn_dict, optimizer, device, epoch, num_epochs):
+def train_step(config, train_dl, model, loss_fn, optimizer, device, epoch, num_epochs):
     model.train()
 
     optimizer.zero_grad()
 
     emotion_count = len(config['emotions'])
-    subject_count = 4
-    consecutive_seqs = config['training']['consecutive_seqs']
-    n = consecutive_seqs * len(train_dl)
+    subject_count = len(config['files']['train']['subjects'])
+    n = len(train_dl)
     train_loss = 0.0
 
     train_loop = tqdm(enumerate(train_dl), total=len(train_dl), leave=False)
@@ -75,9 +74,8 @@ def train_step(config, train_dl, model, loss_fn_dict, optimizer, device, epoch, 
         base_target = base_target.to(device)
 
         reconstructed = model(feature, emotion_idx, subject_idx, base_target)
-        rec_loss = loss_fn_dict['rec'](reconstructed, target)
-        # vel_loss = loss_fn_dict['vel'](reconstructed, target)
-        loss = rec_loss     # + vel_loss
+        rec_loss = loss_fn(reconstructed, target)
+        loss = rec_loss
 
         loss.backward()
         optimizer.step()
@@ -94,12 +92,12 @@ def train_step(config, train_dl, model, loss_fn_dict, optimizer, device, epoch, 
     return train_loss
 
 
-def validation_step(config, val_dl, model, loss_fn_dict, device, epoch, num_epochs):
+def validation_step(config, val_dl, model, loss_fn, device, epoch, num_epochs):
     model.eval()
 
     emotion_count = len(config['emotions'])
-    subject_count = 4
-    n = config['training']['consecutive_seqs'] * len(val_dl)
+    subject_count = len(config['files']['train']['subjects'])
+    n = len(val_dl)
     val_loss = 0.0
 
     with torch.no_grad():
@@ -120,9 +118,8 @@ def validation_step(config, val_dl, model, loss_fn_dict, device, epoch, num_epoc
             base_target = base_target.to(device)
 
             reconstructed = model(feature, emotion_idx, subject_idx, base_target)
-            rec_loss = loss_fn_dict['rec'](reconstructed, target)
-            # vel_loss = loss_fn_dict['vel'](reconstructed, target)
-            loss = rec_loss     # + vel_loss
+            rec_loss = loss_fn(reconstructed, target)
+            loss = rec_loss
 
             current_loss = loss.item()
 
@@ -142,12 +139,6 @@ def train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_his
     val_loss_history = val_hist if val_hist is not None else []
 
     rec_loss = nn.L1Loss()
-    vel_loss = VelocityLoss(config, rec_loss)
-
-    loss_fn_dict = {
-        'rec': rec_loss,
-        'vel': vel_loss
-    }
 
     if last_epoch > 0:
         print('Resuming training')
@@ -155,9 +146,9 @@ def train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_his
     for epoch in range(last_epoch + 1, num_epochs + 1):
         print(f'epoch {epoch}/{num_epochs}:')
         s = time.time()
-        train_loss = train_step(config, train_dl, model, loss_fn_dict, optimizer, device, epoch, num_epochs)
+        train_loss = train_step(config, train_dl, model, rec_loss, optimizer, device, epoch, num_epochs)
         print('train loss:', train_loss)
-        val_loss = validation_step(config, val_dl, model, loss_fn_dict, device, epoch, num_epochs)
+        val_loss = validation_step(config, val_dl, model, rec_loss, device, epoch, num_epochs)
         print('val loss:', val_loss)
 
         train_loss_history.append(train_loss)
@@ -183,8 +174,8 @@ def main():
     config = get_config()
     set_seed(42, True)
 
-    train_data = MEADDataset(partition='test', config=config, feature='mfcc', use_rescaled=False, use_norm=True)
-    val_data = MEADDataset(partition='val', config=config, feature='mfcc', use_rescaled=False, use_norm=True)
+    train_data = MEADDataset(partition='train', config=config, use_centered=True)
+    val_data = MEADDataset(partition='val', config=config, use_centered=True)
 
     batch_size = config['training']['batch_size']
     lr = config['training']['learning_rate']
@@ -193,8 +184,8 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device}')
 
-    train_dl = data.DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=5, drop_last=False)
-    val_dl = data.DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=5, drop_last=False)
+    train_dl = data.DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=2, drop_last=False)
+    val_dl = data.DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=2, drop_last=False)
 
     # subject_idx, emotion_idx, feature, target, base_target = next(iter(val_dl))
     # print('subject:', subject_idx.shape)
@@ -203,7 +194,7 @@ def main():
     # print('target:', target.shape)
     # print('template:', base_target.shape)
 
-    model = SequenceRegressor(config, device, feature_type='mfcc')
+    model = SequenceRegressor(config, device)
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, decay_rate)

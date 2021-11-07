@@ -7,29 +7,26 @@ from utils.files.save import load_numpy, load_torch
 
 
 class MEADDataset(Dataset):
-    def __init__(self, partition: str, config: dict, feature: str = 'melspec',
-                 use_rescaled: bool = False, use_norm: bool = False):
+    def __init__(self, partition: str, config: dict, use_centered: bool = False):
 
         self.partition = partition
         self.data_root = config['files'][partition]['root']
         self.landmarks_dir = 'landmarks'
-        self.feature_dir = feature
+        self.feature_dir = config['model']['feature']
         self.csv_file = config['files'][partition]['csv']
         self.csv_data = pd.read_csv(self.csv_file)
-        self.subjects = config['files'][partition]['subjects']
+        self.subjects = config['files']['train']['subjects']
         self.sbj_to_idx = {self.subjects[idx]: idx for idx in range(len(self.subjects))}
         self.emotions = config['emotions']
         self.e_to_idx = {self.emotions[idx]: idx for idx in range(len(self.emotions))}
         self.sample_rate = config['audio']['sample_rate']
-        self.use_rescaled = use_rescaled
-        self.use_norm = use_norm
+        self.use_centered = use_centered
 
     def __len__(self):
         return len(self.csv_data)
 
     def __getitem__(self, index: int):
         sbj, emo, feature_path, lmks_path, template_path = self._get_element_paths(index)
-
         feature_seq = load_numpy(feature_path)
         feature_seq = torch.from_numpy(feature_seq).type(torch.float32)
 
@@ -43,7 +40,8 @@ class MEADDataset(Dataset):
         sbj_template = torch.from_numpy(sbj_template).type(torch.float32)
         sbj_template = sbj_template.repeat(lmks_seq.shape[0], 1, 1)
 
-        sbj_idx = [self.sbj_to_idx[sbj]]
+        #sbj_idx = [self.sbj_to_idx[sbj]]
+        sbj_idx = [0]
         sbj_idx = torch.Tensor(sbj_idx).type(torch.int64)
 
         emotion_idx = [self.e_to_idx[emo]]
@@ -78,7 +76,7 @@ class MEADDataset(Dataset):
         return sbj_idx, emotion_idx, feature, target, base_target, sbj, e, lv, fname
 
 
-    def _get_inference_item_path(self, index: int) -> tuple[str, str, str, str, str, str]:
+    def _get_inference_item_path(self, index: int) -> 'tuple[str, str, str, str, str, str]':
         sbj, e, lv, audio, _ = self.csv_mini.iloc[index]
         fname = audio.split('.')[0]
         container_dir = os.path.join(self.data_root, sbj, e, f'level_{lv}')
@@ -98,9 +96,8 @@ class MEADDataset(Dataset):
         return data_list
 
     def _get_element_paths(self, index: int):
-        sbj, e, lv, audio, _ = self.csv_data.iloc[index]
-
-        audio = audio.split('.')[0]
+        sbj, e, lv, audio = self.csv_data.iloc[index]
+        audio = f'{audio:03d}'
         container_dir = os.path.join(self.data_root, sbj, e, f'level_{lv}')
         container_dir = container_dir.replace('processed_data/', '')
 
@@ -112,25 +109,20 @@ class MEADDataset(Dataset):
 
         target_lmks_file = os.path.join(container_dir, self.landmarks_dir, f'{audio}{lmks_suffix}.npy')
         feature_dir = os.path.join(container_dir, self.feature_dir)
-        if self.feature_dir == 'melspec':
-            feature_file = os.path.join(feature_dir, f'{audio}full{feature_suffix}.npy')
-        else:
-            feature_file = os.path.join(feature_dir, f'{audio}{feature_suffix}.npy')
+        feature_file = os.path.join(feature_dir, f'{audio}{feature_suffix}.npy')
 
         return sbj, e, feature_file, target_lmks_file, base_lmks_file
 
     def _get_file_suffix(self, file_type: str = 'lmks'):
         if file_type == 'lmks':
             suffix = ''
-            if self.use_rescaled:
-                suffix += 'rs'
-            if self.use_norm:
-                suffix += 'n'
+            if self.use_centered:
+                suffix += 'c'
             return suffix
         else:
             return f'_{self.sample_rate}'
     
-    def _get_sequence_paths(self, element_type: str, elements: list[str], container_dir: str, audio: str):
+    def _get_sequence_paths(self, element_type: str, elements: 'list[str]', container_dir: str, audio: str):
         if element_type == 'lmks':
             element_dir = self.landmarks_dir
         else:

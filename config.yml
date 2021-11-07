@@ -38,8 +38,10 @@ files:
     - M013
     - W015
 model:
+  feature: mfcc
   hidden_dim: 128
   num_layers: 1
+  use_condition: true
   velocity_weight: 10.0
   vertex_num: 468
 training:

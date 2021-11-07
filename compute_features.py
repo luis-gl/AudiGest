@@ -30,9 +30,9 @@ def generate_subject_data(csv_data: pd.DataFrame,
         mfcc_frames = mfccs.shape[1]
         melspec_frames = melspec.shape[1]
         if mfcc_frames < melspec_frames:
-            melspec = melspec[:mfcc_frames - melspec_frames]
+            melspec = melspec[:, :mfcc_frames - melspec_frames]
         elif mfcc_frames > melspec_frames:
-            mfccs = mfccs[:melspec_frames - mfcc_frames]
+            mfccs = mfccs[:, :melspec_frames - mfcc_frames]
 
         mfcc_frames = mfccs.shape[1]
         melspec_frames = melspec.shape[1]
@@ -45,8 +45,8 @@ def generate_subject_data(csv_data: pd.DataFrame,
         if mfcc_frames < video_frames:
             video_landmarks = video_landmarks[:mfcc_frames - video_frames]
         elif mfcc_frames > video_frames:
-            mfccs = mfccs[:video_frames - mfcc_frames]
-            melspec = melspec[:video_frames - mfcc_frames]
+            mfccs = mfccs[:, :video_frames - mfcc_frames]
+            melspec = melspec[:, :video_frames - mfcc_frames]
 
         mfcc_frames = mfccs.shape[1]
         video_frames = video_landmarks.shape[0]

@@ -59,12 +59,12 @@ def make_inference(model: SequenceRegressor, device: torch.device, dataset: MEAD
 def main():
     config = get_config()
 
-    test_data = MEADDataset(partition='val', config=config, feature='mfcc', use_rescaled=False, use_norm=True)
+    test_data = MEADDataset(partition='val', config=config, use_centered=True)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device}')
 
-    model = SequenceRegressor(config, device, feature_type='mfcc')
+    model = SequenceRegressor(config, device)
     last_epoch = get_last_epoch()
     model.load(last_epoch)
 
@@ -78,11 +78,6 @@ def main():
 
     convert_to_txt(reconstructed, '003_inf.txt')
     # graph_face(reconstructed, 1, 2, 0)
-    # print('mse:', mse(reconstructed, target))
-    
-    # npy_face = reconstructed.numpy()
-    # save_numpy(npy_face, 'test.npy')
-
 
 if __name__ == '__main__':
     main()

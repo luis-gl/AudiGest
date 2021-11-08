@@ -1,3 +1,4 @@
+from re import template
 import numpy as np
 import os
 import random
@@ -47,7 +48,7 @@ def get_last_epoch() -> int:
     return last_checkpoint
 
 
-def train_step(config, train_dl, model, loss_fn, optimizer, device, epoch, num_epochs):
+def train_step(config, train_dl, model, loss_fn_dict, optimizer, device, epoch, num_epochs):
     model.train()
 
     optimizer.zero_grad()
@@ -74,8 +75,9 @@ def train_step(config, train_dl, model, loss_fn, optimizer, device, epoch, num_e
         base_target = base_target.to(device)
 
         reconstructed = model(feature, emotion_idx, subject_idx, base_target)
-        rec_loss = loss_fn(reconstructed, target)
-        loss = rec_loss
+        rec_loss = loss_fn_dict['rec'](reconstructed, target)
+        vel_loss = loss_fn_dict['vel'](reconstructed, target)
+        loss = rec_loss + vel_loss
 
         loss.backward()
         optimizer.step()
@@ -92,24 +94,28 @@ def train_step(config, train_dl, model, loss_fn, optimizer, device, epoch, num_e
     return train_loss
 
 
-def validation_step(config, val_dl, model, loss_fn, device, epoch, num_epochs):
+def validation_step(config, val_dl, model, loss_fn_dict, device, epoch, num_epochs):
     model.eval()
 
     emotion_count = len(config['emotions'])
     subject_count = len(config['files']['train']['subjects'])
-    n = len(val_dl)
+    n = len(val_dl) * subject_count
     val_loss = 0.0
 
     with torch.no_grad():
         val_loop = tqdm(enumerate(val_dl), total=len(val_dl), leave=False)
-        for _, (subject_idx, emotion_idx, feature, target, base_target) in val_loop:
-            subject_idx = subject_idx.squeeze(dim=0)
+        for _, (_, emotion_idx, feature, target, base_target) in val_loop:
+            subject_idx = torch.arange(0, subject_count)
             subject_idx = F.one_hot(subject_idx, subject_count)
 
-            emotion_idx = emotion_idx.squeeze(dim=0)
             emotion_idx = F.one_hot(emotion_idx, emotion_count)
+            emotion_idx = emotion_idx.repeat(subject_count, 1, 1)
 
             feature = feature.permute(0, 2, 1)
+            feature = feature.repeat(subject_count, 1, 1)
+
+            target = target.repeat(subject_count, 1, 1, 1)
+            base_target = base_target.repeat(subject_count, 1, 1, 1)
 
             subject_idx = subject_idx.to(device)
             emotion_idx = emotion_idx.to(device)
@@ -118,12 +124,13 @@ def validation_step(config, val_dl, model, loss_fn, device, epoch, num_epochs):
             base_target = base_target.to(device)
 
             reconstructed = model(feature, emotion_idx, subject_idx, base_target)
-            rec_loss = loss_fn(reconstructed, target)
-            loss = rec_loss
+            rec_loss = loss_fn_dict['rec'](reconstructed, target)
+            vel_loss = loss_fn_dict['vel'](reconstructed, target)
+            loss = rec_loss + vel_loss
 
             current_loss = loss.item()
 
-            val_loss += current_loss
+            val_loss += current_loss * subject_count
 
             val_loop.set_description(f'Epoch {epoch}/{num_epochs}: validation')
             val_loop.set_postfix(loss=current_loss)
@@ -139,6 +146,12 @@ def train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_his
     val_loss_history = val_hist if val_hist is not None else []
 
     rec_loss = nn.L1Loss()
+    vel_loss = VelocityLoss(config, rec_loss)
+
+    loss_fn_dict = {
+        'rec': rec_loss,
+        'vel': vel_loss
+    }
 
     if last_epoch > 0:
         print('Resuming training')
@@ -146,9 +159,9 @@ def train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_his
     for epoch in range(last_epoch + 1, num_epochs + 1):
         print(f'epoch {epoch}/{num_epochs}:')
         s = time.time()
-        train_loss = train_step(config, train_dl, model, rec_loss, optimizer, device, epoch, num_epochs)
+        train_loss = train_step(config, train_dl, model, loss_fn_dict, optimizer, device, epoch, num_epochs)
         print('train loss:', train_loss)
-        val_loss = validation_step(config, val_dl, model, rec_loss, device, epoch, num_epochs)
+        val_loss = validation_step(config, val_dl, model, loss_fn_dict, device, epoch, num_epochs)
         print('val loss:', val_loss)
 
         train_loss_history.append(train_loss)
@@ -184,8 +197,8 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device}')
 
-    train_dl = data.DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=2, drop_last=False)
-    val_dl = data.DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=2, drop_last=False)
+    train_dl = data.DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=4)
+    val_dl = data.DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=4)
 
     # subject_idx, emotion_idx, feature, target, base_target = next(iter(val_dl))
     # print('subject:', subject_idx.shape)
@@ -193,6 +206,7 @@ def main():
     # print('feature:', feature.shape)
     # print('target:', target.shape)
     # print('template:', base_target.shape)
+    # print('-' * 10)
 
     model = SequenceRegressor(config, device)
     model = model.to(device)

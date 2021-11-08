@@ -32,9 +32,9 @@ class MEADDataset(Dataset):
 
         lmks_seq = load_numpy(lmks_path)
         lmks_seq = torch.from_numpy(lmks_seq).type(torch.float32)
-        size_diff = lmks_seq.shape[0] - feature_seq.shape[1]
-        if size_diff < 0:
-            feature_seq = feature_seq[:, :size_diff]
+        # size_diff = lmks_seq.shape[0] - feature_seq.shape[1]
+        # if size_diff < 0:
+        #     feature_seq = feature_seq[:, :size_diff]
 
         sbj_template = load_numpy(template_path)
         sbj_template = torch.from_numpy(sbj_template).type(torch.float32)

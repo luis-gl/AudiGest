@@ -47,5 +47,5 @@ model:
 training:
   batch_size: 1
   decay_rate: 1.0
-  epochs: 300
+  epochs: 100
   learning_rate: 1.0e-06

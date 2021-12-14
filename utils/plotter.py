@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import os
 
 
 def plot_loss(model_dic, model_name=None, save=False, test=False):
@@ -16,6 +17,8 @@ def plot_loss(model_dic, model_name=None, save=False, test=False):
     plt.xlabel('Epoch')
     plt.legend(loc='lower right')
     if save:
+        if not os.path.exists('plots'):
+            os.mkdir('plots')
         if test:
             fname = f'./plots/{model_name}_losses_test.png'
         else:

@@ -6,6 +6,7 @@ processed_data/*
 !processed_data/*.csv
 !processed_data/*.pkl
 !processed_data/training/
+!processed_data/faces/
 
 # Downloaded dataset
 MEAD/*

@@ -20,13 +20,11 @@ def create_default_config():
             'train': {
                 'root': 'processed_data/train',
                 'csv': 'processed_data/train_dataset.csv',
-                'mini': 'processed_data/train_mini.csv',
                 'subjects': ['M003','M009','M019','W009','W011','W019']
             },
             'val': {
                 'root': 'processed_data/val',
                 'csv': 'processed_data/val_dataset.csv',
-                'mini': 'processed_data/val_mini.csv',
                 'subjects': ['M013','W015']
             },
             'face': 'processed_data/face.obj'
@@ -44,14 +42,13 @@ def create_default_config():
             'hidden_dim': 128,
             'num_layers': 1,
             'vertex_num': 468,
-            'velocity_weight': 10.0,
             'feature': 'mfcc',
             'use_condition': True
         },
         'training': {
             'batch_size': 1,
             'learning_rate': 1e-6,
-            'epochs': 300,
+            'epochs': 600,
             'decay_rate': 1.0
         }
     }

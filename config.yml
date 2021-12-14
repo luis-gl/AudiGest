@@ -21,7 +21,6 @@ files:
   subject_paths: processed_data/sbj_data_paths.pkl
   train:
     csv: processed_data/train_dataset.csv
-    mini: processed_data/train_mini.csv
     root: processed_data/train
     subjects:
     - M003
@@ -32,7 +31,6 @@ files:
     - W019
   val:
     csv: processed_data/val_dataset.csv
-    mini: processed_data/val_mini.csv
     root: processed_data/val
     subjects:
     - M013
@@ -42,10 +40,9 @@ model:
   hidden_dim: 128
   num_layers: 1
   use_condition: true
-  velocity_weight: 10.0
   vertex_num: 468
 training:
   batch_size: 1
   decay_rate: 1.0
-  epochs: 100
+  epochs: 600
   learning_rate: 1.0e-06

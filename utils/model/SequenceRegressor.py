@@ -43,17 +43,13 @@ class SequenceRegressor(nn.Module):
         c_0 = torch.zeros(self.layers, feature.shape[0], self.hidden_dim).to(self.device)
 
         if self.condition_num > 0:
-            # subject = subject.unsqueeze(dim=1)
-            # subject = torch.tile(subject, (1, feature.shape[1], 1))
             emotion = torch.tile(emotion, (1, feature.shape[1], 1))
-            # feature = torch.cat((subject, emotion, feature), dim=-1)
             feature = torch.cat((emotion, feature), dim=-1)
 
         seq_features, _ = self.seq_modeler(feature, (h_0, c_0))
         # -> [B, L, hidden_dim], ([layers, B, hidden], [layers, B, hidden])
 
         if self.condition_num > 0:
-            # seq_features = torch.cat((subject, emotion, seq_features), dim=-1)
             seq_features = torch.cat((emotion, seq_features), dim=-1)
 
         offsets = self.offsets_layer(seq_features)

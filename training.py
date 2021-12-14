@@ -3,10 +3,10 @@ import os
 import random
 import time
 import torch.optim
-import torch.nn as nn
 import torch.nn.functional as F
 
 from config_creator import get_config
+from utils.model.losses import VelocityLoss
 from torch.utils import data
 from tqdm import tqdm
 from utils.model.MEADdataset import MEADDataset
@@ -145,9 +145,11 @@ def train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_his
     val_loss_history = val_hist if val_hist is not None else []
 
     rec_loss = nn.L1Loss()
+    vel_loss = VelocityLoss(config, rec_loss)
 
     loss_fn_dict = {
-        'rec': rec_loss
+        'rec': rec_loss,
+        'vel': vel_loss
     }
 
     if last_epoch > 0:

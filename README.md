@@ -46,7 +46,7 @@ $ pip install -r requirements.txt
 
 How to Use
 ==========
-Generate a Speech Animatino from Audio
+Generate a Speech Animation from Audio
 --------------------------------------
 Check for the saved state of the model in ```processed_data/training```, then execute the following command:
 ```

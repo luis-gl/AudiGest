@@ -22,12 +22,12 @@ $ sudo apt-get install libboost-dev
 $ sudo apt-get install cmake
 ```
 
-Then in mesh/mesh/cmake/thirdparty.cmake, fixed line 29 by writing "()" for ```print```:
+Then in ```mesh/mesh/cmake/thirdparty.cmake```, fixed line 29 by writing "()" for ```print```:
 ```
 COMMAND ${PYTHON_EXECUTABLE} -c "import numpy; print(numpy.get_include())"
 ```
 
-Finally on the main directory of the repository ```mesh/``` run the below command:
+Finally on the main directory of the repository ```mesh/``` run the command below:
 ```
 $ make all
 ```
@@ -39,7 +39,7 @@ $ sudo apt install ffmpeg
 ```
 Python Modules
 --------------
-The Python modules needed to run the code are in ```requirements.txt```. Run on your virtual enviroment.
+The Python modules needed to run the code are in ```requirements.txt```. Run in your virtual enviroment.
 ```
 $ pip install -r requirements.txt
 ```
@@ -50,9 +50,9 @@ Generate a Speech Animation from Audio
 --------------------------------------
 Check for the saved state of the model in ```processed_data/training```, then execute the following command:
 ```
-$ python model_inference.py --audio_path audio/MEAD_test_audio.wav --emotion happy --base_face faces/base_face.npy --out_video_path videos/output
+$ python model_inference.py --audio_path audio/MEAD_test_audio.wav --emotion happy --base_face faces/base_face.npy --video_directory videos --video_fname output
 ```
-You can change the command arguments acording to the help command:
+You can change the command arguments according to the help command:
 ```
 $ python model_inference.py -h
 ```

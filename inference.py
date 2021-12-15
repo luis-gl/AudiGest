@@ -6,7 +6,7 @@ from utils.files.save import load_numpy
 from utils.model.SequenceRegressor import SequenceRegressor
 from config_creator import get_config
 from training import get_last_epoch
-# from utils.rendering.model_render import ModelRender
+from utils.rendering.model_render import ModelRender
 
 
 def get_emotion2idx_dict(config):
@@ -17,7 +17,7 @@ def get_emotion2idx_dict(config):
 
     return emotion2idx
 
-def make_inference(audio_path, emotion, base_face_path, out_video_path):
+def make_inference(audio_path, emotion, base_face_path, video_directory, video_fname):
     config = get_config()
     face = load_numpy(base_face_path)
     emotion2idx = get_emotion2idx_dict(config)
@@ -60,5 +60,6 @@ def make_inference(audio_path, emotion, base_face_path, out_video_path):
         reconstructed = reconstructed.squeeze(dim=0).cpu().numpy()
         print(reconstructed.shape)
 
-        # renderer = ModelRender(config=config, dataset=test_data)
-        # renderer.render_sequences(model, device, output_video_path)
+        renderer = ModelRender(config=config)
+        renderer.set_up(audio_path=audio_path,out_folder=video_directory,video_path=video_fname)
+        renderer.render_sequences(reconstructed)

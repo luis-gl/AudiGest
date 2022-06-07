@@ -41,6 +41,7 @@ model:
   num_layers: 1
   use_condition: true
   vertex_num: 468
+  velocity_weight: 10.0
 training:
   batch_size: 1
   decay_rate: 1.0

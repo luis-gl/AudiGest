@@ -14,9 +14,11 @@ def remove_elements(parent_dir: str):
         lmks_path = os.path.join(content_path, 'landmarks')
         lmks = os.listdir(lmks_path)
         for lmk in lmks:
+            if not 'c' in lmk:
+                continue
             lmk_element = os.path.join(lmks_path, lmk)
-            if os.path.exists(lmk_element) and os.path.isdir(lmk_element):
-                shutil.rmtree(lmk_element)
+            if os.path.exists(lmk_element) and os.path.isfile(lmk_element):
+                os.remove(lmk_element)
 
         mfcc_path = os.path.join(content_path, 'mfcc')
         if os.path.exists(mfcc_path) and os.path.isdir(mfcc_path):
@@ -29,7 +31,7 @@ def remove_elements(parent_dir: str):
 
 def main():
     root = 'processed_data'
-    phases = ['train', 'val', 'test']
+    phases = ['train', 'val']
     for phase in phases:
         remove_elements(os.path.join(root, phase))
 

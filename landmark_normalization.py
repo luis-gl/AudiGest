@@ -48,6 +48,12 @@ def center_sequence(seq: np.ndarray):
         seq_lmks[idx, :] -= centers[idx]
     return seq_lmks
 
+def center_face(face: np.ndarray):
+    face_cpy = face.copy()
+    center = face_cpy.mean(axis=0)
+    face_cpy -= center
+    return face_cpy
+
 
 def main():
     for phase in ['train', 'val']:
@@ -57,9 +63,9 @@ def main():
         for sbj in loop:
             lmks_path = os.path.join(phase, sbj)
             lmks_file = os.path.join(lmks_path, f'{sbj}.npy')
-            seq_lmks = load_numpy(lmks_file)
-            seq_lmks = center_sequence(seq_lmks)
-            save_numpy(seq_lmks, file_name=f'{sbj}c.npy', dir_path=lmks_path)
+            face_lmks = load_numpy(lmks_file)
+            face_lmks = center_face(face_lmks)
+            save_numpy(face_lmks, file_name=f'{sbj}c.npy', dir_path=lmks_path)
 
 
 if __name__ == '__main__':

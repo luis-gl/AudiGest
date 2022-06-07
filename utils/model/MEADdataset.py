@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 
 from torch.utils.data import Dataset
-from utils.files.save import load_numpy, load_torch
+from utils.files.save import load_numpy
 
 
 class MEADDataset(Dataset):
@@ -26,7 +26,8 @@ class MEADDataset(Dataset):
         return len(self.csv_data)
 
     def __getitem__(self, index: int):
-        sbj, emo, feature_path, lmks_path, template_path = self._get_element_paths(index)
+        _, emo, feature_path, lmks_path, template_path = self._get_element_paths(index)
+
         feature_seq = load_numpy(feature_path)
         feature_seq = torch.from_numpy(feature_seq).type(torch.float32)
 
@@ -51,26 +52,33 @@ class MEADDataset(Dataset):
         container_dir = os.path.join(self.data_root, sbj, e, f'level_{lv}')
         container_dir = container_dir.replace('processed_data/', '')
 
+        base_suffix = self._get_file_suffix('base')
         lmks_suffix = self._get_file_suffix('lmks')
         feature_suffix = self._get_file_suffix('feature')
 
-        base_lmks_file = os.path.join(self.data_root, sbj, f'{sbj}{lmks_suffix}.npy')
+        base_lmks_file = os.path.join(self.data_root, sbj, f'{sbj}{base_suffix}.npy')
         base_lmks_file = base_lmks_file.replace('processed_data/', '')
 
-        target_lmks_file = os.path.join(container_dir, self.landmarks_dir, f'{audio}{lmks_suffix}.npy')
-        feature_dir = os.path.join(container_dir, self.feature_dir)
+        target_lmks_file = os.path.join(container_dir, self.landmarks_dir, f'{self.sample_rate}', f'{audio}{lmks_suffix}.npy')
+        feature_dir = os.path.join(container_dir, self.feature_dir, f'{self.sample_rate}')
         feature_file = os.path.join(feature_dir, f'{audio}{feature_suffix}.npy')
 
         return sbj, e, feature_file, target_lmks_file, base_lmks_file
 
     def _get_file_suffix(self, file_type: str = 'lmks'):
-        if file_type == 'lmks':
-            suffix = ''
+        suffix = ''
+
+        if file_type == 'base':
             if self.use_centered:
                 suffix += 'c'
             return suffix
-        else:
-            return f'_{self.sample_rate}'
+
+        suffix = f'_{self.sample_rate}'
+
+        if file_type == 'lmks' and self.use_centered:
+            suffix += 'c'
+        
+        return suffix
     
     def _get_sequence_paths(self, element_type: str, elements: 'list[str]', container_dir: str, audio: str):
         if element_type == 'lmks':

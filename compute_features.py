@@ -54,25 +54,28 @@ def generate_subject_data(csv_data: pd.DataFrame,
         assert mfcc_frames > 0 and video_frames > 0 and melspec_frames > 0
         assert mfcc_frames == video_frames and melspec_frames == video_frames
 
-        save_numpy(melspec, file_name=f'{audio}_{sample_rate}.npy', dir_path=melspec_path)
-        save_numpy(mfccs, file_name=f'{audio}_{sample_rate}.npy', dir_path=mfcc_path)
+        melspec_save_path = os.path.join(melspec_path, f'{sample_rate}')
+        mfcc_save_path = os.path.join(mfcc_path, f'{sample_rate}')
+        lmks_save_path = os.path.join(lmks_path, f'{sample_rate}')
 
-        save_numpy(video_landmarks, file_name=f'{audio}.npy', dir_path=lmks_path)
+        save_numpy(melspec, file_name=f'{audio}_{sample_rate}.npy', dir_path=melspec_save_path)
+        save_numpy(mfccs, file_name=f'{audio}_{sample_rate}.npy', dir_path=mfcc_save_path)
+
+        save_numpy(video_landmarks, file_name=f'{audio}_{sample_rate}.npy', dir_path=lmks_save_path)
         centered_landmarks = center_sequence(video_landmarks)
-        save_numpy(centered_landmarks, file_name=f'{audio}c.npy', dir_path=lmks_path)
+        save_numpy(centered_landmarks, file_name=f'{audio}_{sample_rate}c.npy', dir_path=lmks_save_path)
 
 
 def main():
     config = get_config()
 
-    data_root = config['files']['data_root']
     phases = ['train', 'val']
     audio_cfg = config['audio']
     feature_extractor = AudioFeatureExtractor(audio_cfg)
 
     for phase in phases:
         phase_path = config['files'][phase]['root']
-        csv_path = os.path.join(data_root, f'{phase}_dataset.csv')
+        csv_path = config['files'][phase]['csv']
         csv_data = pd.read_csv(csv_path)
 
         generate_subject_data(csv_data, phase, phase_path, feature_extractor)

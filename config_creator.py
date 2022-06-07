@@ -43,7 +43,8 @@ def create_default_config():
             'num_layers': 1,
             'vertex_num': 468,
             'feature': 'mfcc',
-            'use_condition': True
+            'use_condition': True,
+            'velocity_weight': 10.0
         },
         'training': {
             'batch_size': 1,

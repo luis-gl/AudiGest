@@ -3,6 +3,7 @@ import os
 import random
 import time
 import torch.optim
+import torch.nn as nn
 import torch.nn.functional as F
 
 from config_creator import get_config
@@ -199,7 +200,7 @@ def main():
     train_dl = data.DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=4)
     val_dl = data.DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=4)
 
-    # subject_idx, emotion_idx, feature, target, base_target = next(iter(val_dl))
+    # subject_idx, emotion_idx, feature, target, base_target = next(iter(train_dl))
     # print('subject:', subject_idx.shape)
     # print('emotion:', emotion_idx.shape)
     # print('feature:', feature.shape)
@@ -221,9 +222,14 @@ def main():
     if scheduler_st is not None:
         scheduler.load_state_dict(scheduler_st)
 
+    # model_dict = {
+    #     'train_history': train_hist,
+    #     'val_history': val_hist
+    # }
+
     model_dict = train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_hist, val_hist,
                              device, last_epoch, epochs)
-    plot_loss(model_dict, 'AudiGest', save=True, test=True)
+    plot_loss(model_dict, 'AudiGest', save=True, test=False)
 
 
 if __name__ == '__main__':

@@ -6,6 +6,7 @@ from utils.files.save import load_numpy
 from utils.model.SequenceRegressor import SequenceRegressor
 from config_creator import get_config
 from training import get_last_epoch
+from landmark_normalization import convert_to_txt
 from utils.rendering.model_render import ModelRender
 
 
@@ -40,10 +41,10 @@ def make_inference(audio_path, emotion, base_face_path, video_directory, video_f
 
         emotion = torch.Tensor([emotion2idx[emotion]]).type(torch.int64)
 
-        print('emotion:', emotion.shape)
-        print('feature:', feature.shape)
-        print('template:', template.shape)
-        print('-' * 10)
+        # print('emotion:', emotion.shape)
+        # print('feature:', feature.shape)
+        # print('template:', template.shape)
+        # print('-' * 10)
 
         emotion = F.one_hot(emotion, len(config['emotions']))
 
@@ -58,8 +59,13 @@ def make_inference(audio_path, emotion, base_face_path, video_directory, video_f
 
         reconstructed = model(feature, emotion, None, template)
         reconstructed = reconstructed.squeeze(dim=0).cpu().numpy()
-        print(reconstructed.shape)
-
+        
         renderer = ModelRender(config=config)
         renderer.set_up(audio_path=audio_path,out_folder=video_directory,video_path=video_fname)
         renderer.render_sequences(reconstructed)
+
+if __name__ == '__main__':
+    audio_path = 'audio/MEAD_test_audio.wav'
+    emotion = 'angry'
+    face = 'val/M013/M013c.npy'
+    make_inference(audio_path, emotion, face, '', '')

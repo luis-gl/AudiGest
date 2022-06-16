@@ -222,11 +222,6 @@ def main():
     if scheduler_st is not None:
         scheduler.load_state_dict(scheduler_st)
 
-    # model_dict = {
-    #     'train_history': train_hist,
-    #     'val_history': val_hist
-    # }
-
     model_dict = train_model(config, train_dl, val_dl, model, optimizer, scheduler, train_hist, val_hist,
                              device, last_epoch, epochs)
     plot_loss(model_dict, 'AudiGest', save=True, test=False)

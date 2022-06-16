@@ -69,7 +69,7 @@ def generate_subject_data(csv_data: pd.DataFrame,
 def main():
     config = get_config()
 
-    phases = ['train', 'val']
+    phases = ['train', 'val', 'test']
     audio_cfg = config['audio']
     feature_extractor = AudioFeatureExtractor(audio_cfg)
 

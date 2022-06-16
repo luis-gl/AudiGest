@@ -27,6 +27,11 @@ def create_default_config():
                 'csv': 'processed_data/val_dataset.csv',
                 'subjects': ['M013','W015']
             },
+            'test': {
+                'root': 'processed_data/test',
+                'csv': 'processed_data/test_dataset.csv',
+                'subjects': ['M011', 'W014']
+            },
             'face': 'processed_data/face.obj'
         },
         'audio': {

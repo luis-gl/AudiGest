@@ -19,6 +19,12 @@ files:
   face: processed_data/face.obj
   raw_data_root: MEAD
   subject_paths: processed_data/sbj_data_paths.pkl
+  test:
+    csv: processed_data/test_dataset.csv
+    root: processed_data/test
+    subjects:
+    - M011
+    - W014
   train:
     csv: processed_data/train_dataset.csv
     root: processed_data/train
@@ -39,9 +45,9 @@ model:
   feature: mfcc
   hidden_dim: 128
   num_layers: 1
-  use_condition: true
+  use_condition: false
+  velocity_weight: 0.0
   vertex_num: 468
-  velocity_weight: 10.0
 training:
   batch_size: 1
   decay_rate: 1.0

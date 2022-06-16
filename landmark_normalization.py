@@ -56,7 +56,8 @@ def center_face(face: np.ndarray):
 
 
 def main():
-    for phase in ['train', 'val']:
+    phases = ['train', 'val', 'test']
+    for phase in phases:
         phase_data = pd.read_csv(f'processed_data/{phase}_dataset.csv')
         subjects = phase_data['subject'].unique()
         loop = tqdm(subjects, total=len(subjects))
